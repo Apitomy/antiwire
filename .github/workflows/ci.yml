@@ -55,6 +55,15 @@ jobs:
       - name: fetch the pinned upstream clone
         run: scripts/fetch-upstream.sh "$HOME/antiwire-upstream"
 
+      # TASK-39: the dual-run identity harness reads the apicurio half of its corpus from
+      # the pinned Apicurio Registry clone, cached per pin exactly like the upstream one.
+      - uses: actions/cache@v4
+        with:
+          path: ~/antiwire-apicurio
+          key: apicurio-${{ hashFiles('config/parity-pins.json') }}
+      - name: fetch the pinned apicurio clone
+        run: scripts/fetch-apicurio.sh "$HOME/antiwire-apicurio"
+
       # Offline script-level regression checks (stubbed mvn, synthetic upstream): the
       # verify.sh clone prerequisite, the parity-gate negative probes and the release
       # gate state matrix. They need no network and run before the build so a broken
@@ -66,7 +75,7 @@ jobs:
           scripts/test-release-gates.sh
 
       - name: run the verification entry point
-        run: ANTIWIRE_UPSTREAM="$HOME/antiwire-upstream" scripts/verify.sh
+        run: ANTIWIRE_UPSTREAM="$HOME/antiwire-upstream" ANTIWIRE_APICURIO="$HOME/antiwire-apicurio" scripts/verify.sh
 
   # DEC-18: after a green build of main, publish the -SNAPSHOT to the Central Portal snapshot
   # repository. Without the two secrets below it only prints a notice and succeeds.

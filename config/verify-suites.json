@@ -74,6 +74,12 @@
       "description": "source-compatibility surface of the port against the real Wire 7.1.0 jars (wire-runtime-jvm, wire-schema-jvm, wire-java-generator, wire-compiler; SHA-256 pinned in config/parity-pins.json, SHA-1 cross-checked): every public or protected upstream member is MATCH, GAP (owner task) or EXCLUDED (Kotlin type DEC-4, okio type DEC-14, Kotlin internal, out-of-scope feature, data-class bridge), plus checked-exception differences and the consumer snippets of scripts/surface-consumer compiled against upstream and the port; the committed ledger config/surface-baseline.tsv must equal the computed result, so a regression or a stale gap fails; binary compatibility is not promised (DEC-2)"
     },
     {
+      "name": "dual-run-identity",
+      "status": "PENDING",
+      "owner": "TASK-39",
+      "description": "dual-run output-identity harness (TASK-39): every .proto of the pinned corpora (square/wire 7.1.0, Apicurio Registry) loaded through real Wire 7.1.0 (relocated fixture) and the port in one JVM, asserting identical load outcomes, root-cause failure chains, raw descriptor bytes and canonical text; every difference must be a committed row in config/dual-run-divergences.tsv citing a docs/compatibility-matrix.md anchor; corpus floors 150 upstream / 40 apicurio"
+    },
+    {
       "name": "upstream-watch",
       "status": "ACTIVE",
       "owner": "TASK-23",

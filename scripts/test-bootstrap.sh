@@ -49,19 +49,33 @@ make_upstream_repo() { # <dir> <file-content>: a one-commit repo with annotated 
   git -C "$dir" tag -a "$TAG" -m "synthetic pin"
 }
 
-make_scratch_tree() { # <dir> <repo-path> <tag-object> <commit>
-  local dir="$1" repo="$2" tag_object="$3" commit="$4"
+make_apicurio_repo() { # <dir>: a one-commit repo whose HEAD is the bare-commit pin
+  local dir="$1"
+  mkdir -p "$dir"
+  git -C "$dir" init -q -b main
+  git -C "$dir" config user.email test@antiwire.local
+  git -C "$dir" config user.name "antiwire bootstrap test"
+  printf 'synthetic apicurio corpus\n' >"$dir/README.md"
+  git -C "$dir" add README.md
+  git -C "$dir" commit -qm "synthetic apicurio pin"
+}
+
+make_scratch_tree() { # <dir> <repo-path> <tag-object> <commit> <apicurio-repo>
+  local dir="$1" repo="$2" tag_object="$3" commit="$4" apicurio_repo="$5"
   mkdir -p "$dir"
   cp "$REAL_ROOT/pom.xml" "$dir/pom.xml"
   cp -r "$REAL_ROOT/scripts" "$dir/scripts"
   cp -r "$REAL_ROOT/config" "$dir/config"
-  python3 - "$dir/config/parity-pins.json" "$repo" "$TAG" "$tag_object" "$commit" <<'PY'
+  python3 - "$dir/config/parity-pins.json" "$repo" "$TAG" "$tag_object" "$commit" \
+      "$apicurio_repo" "$APICURIO_COMMIT" <<'PY'
 import json, sys
-path, repo, tag, tag_object, commit = sys.argv[1:6]
+path, repo, tag, tag_object, commit, apicurio_repo, apicurio_commit = sys.argv[1:8]
 with open(path) as f:
     pins = json.load(f)
 pins["upstream"] = {"repository": repo, "tag": tag,
                     "annotated_tag_object": tag_object, "resolved_commit": commit}
+pins["apicurio_registry"]["repository"] = apicurio_repo
+pins["apicurio_registry"]["commit"] = apicurio_commit
 with open(path, "w") as f:
     json.dump(pins, f, indent=2)
     f.write("\n")
@@ -100,7 +114,7 @@ run_state() { # <name> <state-dir>
   : >"$dir/mvn.marker"
   set +e
   env PATH="$stubbin:$PATH" \
-      ANTIWIRE_UPSTREAM="$dir/clone" \
+      ANTIWIRE_UPSTREAM="$dir/clone" ANTIWIRE_APICURIO="$dir/apicurio-clone" \
       CLONE="$dir/clone" PIN_COMMIT="$PIN_COMMIT" MVN_MARKER="$dir/mvn.marker" \
       bash "$dir/tree/scripts/verify.sh" >"$dir/out.log" 2>&1
   echo $? >"$dir/rc"
@@ -129,10 +143,15 @@ PIN_OBJECT="$(git -C "$UPSTREAM" rev-parse "$TAG^{tag}")"
 OTHER_UPSTREAM="$WORK/upstream-other"
 make_upstream_repo "$OTHER_UPSTREAM" "a different upstream"
 
+# Shared synthetic apicurio corpus: the bare-commit pin fetch-apicurio.sh verifies.
+APICURIO_REPO="$WORK/apicurio"
+make_apicurio_repo "$APICURIO_REPO"
+APICURIO_COMMIT="$(git -C "$APICURIO_REPO" rev-parse HEAD)"
+
 new_state() { # <name> -> creates $WORK/<name>/{tree}; prints its dir
   local dir="$WORK/$1"
   mkdir -p "$dir"
-  make_scratch_tree "$dir/tree" "$UPSTREAM" "$PIN_OBJECT" "$PIN_COMMIT"
+  make_scratch_tree "$dir/tree" "$UPSTREAM" "$PIN_OBJECT" "$PIN_COMMIT" "$APICURIO_REPO"
   printf '%s\n' "$dir"
 }
 
@@ -151,6 +170,8 @@ if [ -z "$pin_line" ] || [ -z "$build_line" ] || [ "$pin_line" -ge "$build_line"
   fail absent "pin verification (line ${pin_line:-none}) must precede the build suite (line ${build_line:-none})"
 elif ! grep -q "Cloning into" "$out"; then
   fail absent "an absent clone was not cloned by the prerequisite step"
+elif ! grep -q "apicurio pin verified" "$out"; then
+  fail absent "the apicurio corpus clone was not bootstrapped and pin-verified"
 elif [ "$(mvn_invocations "$dir")" -lt 1 ] || ! mvn_saw_pin "$dir"; then
   fail absent "mvn ran $(mvn_invocations "$dir") time(s) and did not observe a clean clone at the pin"
 else
@@ -160,6 +181,7 @@ fi
 # --- valid: an existing correct clone is reused, not replaced ---------------------------
 dir="$(new_state valid)"
 git clone -q --branch "$TAG" "$UPSTREAM" "$dir/clone"
+git clone -q "$APICURIO_REPO" "$dir/apicurio-clone"
 clone_inode_before="$(stat -c %i "$dir/clone/.git")"
 run_state valid "$dir"
 out="$dir/out.log"
@@ -215,7 +237,7 @@ fi
 
 # --- unreachable: no clone and a repository URL that cannot be fetched -------------------
 dir="$(new_state unreachable)"
-make_scratch_tree "$dir/tree" "$WORK/no-such-repository" "$PIN_OBJECT" "$PIN_COMMIT"
+make_scratch_tree "$dir/tree" "$WORK/no-such-repository" "$PIN_OBJECT" "$PIN_COMMIT" "$APICURIO_REPO"
 run_state unreachable "$dir"
 out="$dir/out.log"
 if [ "$(cat "$dir/rc")" -eq 0 ]; then
@@ -230,10 +252,28 @@ else
   pass unreachable "unreachable sources fail fast with an explicit message before the build"
 fi
 
+# --- apicurio-modified: a dirty apicurio corpus worktree is rejected before mvn ----------
+dir="$(new_state apicurio-modified)"
+git clone -q "$APICURIO_REPO" "$dir/apicurio-clone"
+echo "local edit" >>"$dir/apicurio-clone/README.md"
+run_state apicurio-modified "$dir"
+out="$dir/out.log"
+if [ "$(cat "$dir/rc")" -eq 0 ]; then
+  fail apicurio-modified "verify.sh exited 0 despite a modified apicurio corpus clone"
+elif ! grep -q "has local modifications" "$out"; then
+  fail apicurio-modified "the rejection does not name the local modifications"
+elif ! grep -q "FATAL: prerequisite failed" "$out"; then
+  fail apicurio-modified "no explicit prerequisite failure message"
+elif [ "$(mvn_invocations "$dir")" -ne 0 ]; then
+  fail apicurio-modified "mvn ran $(mvn_invocations "$dir") time(s) despite the modified corpus clone"
+else
+  pass apicurio-modified "modified apicurio corpus clone rejected with an actionable error before the build"
+fi
+
 echo
 if [ "$FAILED" -ne 0 ]; then
   echo "RESULT bootstrap-check.status=FAIL"
   exit 1
 fi
 echo "RESULT bootstrap-check.status=PASS"
-echo "bootstrap prerequisite check: all five clone states behaved as specified"
+echo "bootstrap prerequisite check: all six clone states behaved as specified"
