@@ -30,6 +30,8 @@ final class CorpusStaging {
   private static final Pattern IMPORT = Pattern.compile(
       "^\\s*import\\s+(?:(?:public|weak)\\s+)?\"([^\"]+)\"\\s*;",
       Pattern.MULTILINE);
+  private static final Pattern BLOCK_COMMENT = Pattern.compile("(?s)/\\*.*?\\*/");
+  private static final Pattern LINE_COMMENT = Pattern.compile("//[^\n]*");
 
   /** One staged corpus file: the per-file temp root and the target's path inside it. */
   static final class Staged {
@@ -48,12 +50,13 @@ final class CorpusStaging {
   static Staged stage(Path corpusRoot, String relativePath, Path vendoredWellKnown)
       throws IOException {
     byte[] source = Files.readAllBytes(corpusRoot.resolve(relativePath));
-    String pkg = packageName(stripComments(source));
+    String stripped = stripComments(new String(source, StandardCharsets.UTF_8));
+    String pkg = packageName(stripped);
     String basename = relativePath.substring(relativePath.lastIndexOf('/') + 1);
     String stagedPath = pkg == null ? basename : pkg.replace('.', '/') + "/" + basename;
     Path root = Files.createTempDirectory("antiwire-dual-run");
     write(root, stagedPath, source);
-    Deque<String> work = new ArrayDeque<>(imports(stripComments(source)));
+    Deque<String> work = new ArrayDeque<>(imports(stripped));
     Set<String> stagedImports = new LinkedHashSet<>();
     while (!work.isEmpty()) {
       String importPath = work.poll();
@@ -65,7 +68,8 @@ final class CorpusStaging {
         continue;
       }
       write(root, importPath, content);
-      for (String transitive : imports(stripComments(content))) {
+      for (String transitive : imports(stripComments(new String(content,
+          StandardCharsets.UTF_8)))) {
         work.add(transitive);
       }
     }
@@ -73,19 +77,19 @@ final class CorpusStaging {
   }
 
   /**
-   * Deterministic proto-source scans over comment-stripped bytes: the first package
+   * Deterministic proto-source scans over comment-stripped text: the first package
    * declaration (null for the default package) and every import statement, in file order.
    * The scans only decide WHERE a file is staged; both sides always parse the original
    * bytes verbatim, so a scan quirk can never make the two sides disagree.
    */
-  static String packageName(byte[] stripped) {
-    Matcher matcher = PACKAGE.matcher(new String(stripped, StandardCharsets.UTF_8));
+  static String packageName(String stripped) {
+    Matcher matcher = PACKAGE.matcher(stripped);
     return matcher.find() ? matcher.group(1) : null;
   }
 
-  static List<String> imports(byte[] stripped) {
+  static List<String> imports(String stripped) {
     List<String> result = new ArrayList<>();
-    Matcher matcher = IMPORT.matcher(new String(stripped, StandardCharsets.UTF_8));
+    Matcher matcher = IMPORT.matcher(stripped);
     while (matcher.find()) {
       result.add(matcher.group(1));
     }
@@ -93,11 +97,8 @@ final class CorpusStaging {
   }
 
   /** Block comments collapse to one space (tokens must not fuse); line comments vanish. */
-  static byte[] stripComments(byte[] source) {
-    return new String(source, StandardCharsets.UTF_8)
-        .replaceAll("(?s)/\\*.*?\\*/", " ")
-        .replaceAll("//[^\n]*", "")
-        .getBytes(StandardCharsets.UTF_8);
+  static String stripComments(String source) {
+    return LINE_COMMENT.matcher(BLOCK_COMMENT.matcher(source).replaceAll(" ")).replaceAll("");
   }
 
   /** Import content: the corpus root first, then the vendored well-known protos. */

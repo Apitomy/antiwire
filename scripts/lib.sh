@@ -109,15 +109,15 @@ find_module_jar() {
 # suites read files, not refs, so a modified clone would silently reconcile or compare
 # against edited sources. Prints the restore commands on rejection.
 # <clone-path> <pinned-commit> <what-reads-the-tree>
-checkout_at_pin_and_require_clean() { # <clone-path> <commit> <subject>
+checkout_at_pin_and_require_clean() {
   git -C "$1" checkout --quiet --detach "$2"
   if [ -n "$(git -C "$1" status --porcelain)" ]; then
     {
-      echo "FAIL: $1 has local modifications; $3 reads the working tree," >&2
-      echo "  so a modified clone is rejected. Restore it with:" >&2
-      echo "    git -C $1 restore ." >&2
-      echo "    git -C $1 checkout --quiet --detach $2" >&2
-      echo "    git -C $1 clean -fd" >&2
+      echo "FAIL: $1 has local modifications; $3 reads the working tree,"
+      echo "  so a modified clone is rejected. Restore it with:"
+      echo "    git -C $1 restore ."
+      echo "    git -C $1 checkout --quiet --detach $2"
+      echo "    git -C $1 clean -fd"
     } >&2
     return "$EXIT_FAIL"
   fi

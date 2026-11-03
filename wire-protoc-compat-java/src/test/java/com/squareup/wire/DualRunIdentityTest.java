@@ -46,8 +46,9 @@ class DualRunIdentityTest {
   static final Set<String> OBSERVED = new LinkedHashSet<>();
 
   /** Per-file load outcome this run (both-LOADED / both-THREW / divergent); feeds the
-   *  coverage census. */
-  static final Map<String, String> OUTCOMES = new LinkedHashMap<>();
+   *  coverage census. Keyed on the file object itself: the enumerate-once cache hands the
+   *  same instances to the parameterized test and this census, so identity keys work. */
+  static final Map<CorpusFile, String> OUTCOMES = new LinkedHashMap<>();
 
   /** Both-LOADED coverage floors per half, at the values measured on 2026-11-03 over the
    *  pinned corpora (wire 9f62097dfe4995b5709d001ca0187e30ca0530ef, apicurio
@@ -94,7 +95,7 @@ class DualRunIdentityTest {
             .filter(p -> p.endsWith(".proto"))
             .sorted()
             .collect(java.util.stream.Collectors.toList())) {
-          files.add(new CorpusFile(fields[0], fields[1], relative));
+          files.add(new CorpusFile(fields[0], fields[1], relative, root));
         }
       }
     } catch (IOException e) {
@@ -109,7 +110,7 @@ class DualRunIdentityTest {
   @MethodSource("corpus")
   void identity(CorpusFile file) throws Exception {
     CorpusStaging.Staged staged =
-        CorpusStaging.stage(file.absoluteRoot(), file.relativePath, vendoredWellKnownRoot());
+        CorpusStaging.stage(file.rootPath, file.relativePath, vendoredWellKnownRoot());
     DualRunOutput port;
     DualRunOutput upstream;
     try {
@@ -149,7 +150,7 @@ class DualRunIdentityTest {
     int divergentUpstream = 0;
     int divergentApicurio = 0;
     for (CorpusFile file : corpus()) {
-      String outcome = OUTCOMES.get(file.half + "|" + file.root + "|" + file.relativePath);
+      String outcome = OUTCOMES.get(file);
       if (outcome == null) {
         throw new AssertionError("corpus file was never loaded this run: " + file);
       }
@@ -192,7 +193,8 @@ class DualRunIdentityTest {
   }
 
   /** Census: every committed ledger row was observed this run (a stale row fails) and its
-   *  doc_ref anchor exists in the cited doc, so the compatibility-matrix paragraph a row
+   *  doc_ref anchor exists in the cited doc (DualRunDivergences.assertDocRefAnchor, the
+   *  one Java implementation of the format), so the compatibility-matrix paragraph a row
    *  leans on cannot rot away from the assertion that enforces it. */
   @Order(3)
   @Test void ledgerRowsAllObserved() {
@@ -201,24 +203,7 @@ class DualRunIdentityTest {
         throw new AssertionError("stale ledger row, no observation matched it this run: "
             + rowToString(row));
       }
-      int split = row.docRef.indexOf(':');
-      if (split < 0) {
-        throw new AssertionError("ledger row doc_ref has no '<doc>:<anchor>' split: "
-            + rowToString(row));
-      }
-      Path doc = DualRunDivergences.repoRoot().resolve(row.docRef.substring(0, split).trim());
-      String anchor = row.docRef.substring(split + 1).trim();
-      String text;
-      try {
-        text = new String(Files.readAllBytes(doc), StandardCharsets.UTF_8);
-      } catch (IOException e) {
-        throw new AssertionError("ledger row doc_ref cites a missing doc: "
-            + rowToString(row), e);
-      }
-      if (!text.contains(anchor)) {
-        throw new AssertionError("ledger row doc_ref anchor missing from " + doc + ": "
-            + rowToString(row));
-      }
+      DualRunDivergences.assertDocRefAnchor(row);
     }
   }
 
@@ -259,30 +244,28 @@ class DualRunIdentityTest {
   static void assertRangeProbe(CorpusFile f, DualRunOutput p, DualRunOutput u) {
     String op = "range-probe";
     assertEquals(p.rangeProbes.size(), u.rangeProbes.size(),
-        "range probe count diverged on " + f.half + "|" + f.relativePath);
+        "range probe count diverged on " + f);
     for (int i = 0; i < p.rangeProbes.size(); i++) {
       RangeProbe port = p.rangeProbes.get(i);
       RangeProbe upstream = u.rangeProbes.get(i);
       if (!port.owner.equals(upstream.owner)) {
         throw new AssertionError("range probe owners misaligned on "
-            + f.half + "|" + f.relativePath + ": " + port.owner + " vs " + upstream.owner);
+            + f + ": " + port.owner + " vs " + upstream.owner);
       }
       assertBoundsEqual(port, upstream, f, port.owner);
       assertEquals(port.elementTypes.size(), upstream.elementTypes.size(),
-          "range value count diverged on " + f.half + "|" + f.relativePath
-              + " " + port.owner);
+          "range value count diverged on " + f + " " + port.owner);
       for (int v = 0; v < port.elementTypes.size(); v++) {
         String portShape = port.elementTypes.get(v);
         if (portShape.equals("int[]")) {
           // DEC-15: the port stores int[] pairs where real Wire stores kotlin.ranges.IntRange.
           assertEquals("kotlin.ranges.IntRange", upstream.elementTypes.get(v),
-              "DEC-15 drifted on " + f.half + "|" + f.relativePath + " " + port.owner
+              "DEC-15 drifted on " + f + " " + port.owner
                   + " #" + v + ": port=" + portShape
                   + " upstream=" + upstream.elementTypes.get(v));
         } else {
           assertEquals(portShape, upstream.elementTypes.get(v),
-              "range element type diverged on " + f.half + "|" + f.relativePath
-                  + " " + port.owner + " #" + v);
+              "range element type diverged on " + f + " " + port.owner + " #" + v);
         }
       }
     }
@@ -321,16 +304,16 @@ class DualRunIdentityTest {
     String outcome = p.kind != u.kind
         ? "divergent"
         : p.kind == DualRunOutput.Kind.LOADED ? "both-LOADED" : "both-THREW";
-    OUTCOMES.put(f.half + "|" + f.root + "|" + f.relativePath, outcome);
+    OUTCOMES.put(f, outcome);
   }
 
   static void assertBoundsEqual(RangeProbe port, RangeProbe upstream, CorpusFile f,
       String owner) {
     assertEquals(port.bounds.size(), upstream.bounds.size(),
-        "bounds count diverged on " + f.half + "|" + f.relativePath + " " + owner);
+        "bounds count diverged on " + f + " " + owner);
     for (int i = 0; i < port.bounds.size(); i++) {
       if (!Arrays.equals(port.bounds.get(i), upstream.bounds.get(i))) {
-        throw new AssertionError("bounds diverged on " + f.half + "|" + f.relativePath
+        throw new AssertionError("bounds diverged on " + f
             + " " + owner + " #" + i + ": " + Arrays.toString(port.bounds.get(i))
             + " vs " + Arrays.toString(upstream.bounds.get(i)));
       }
@@ -340,8 +323,7 @@ class DualRunIdentityTest {
   static AssertionError divergence(CorpusFile f, String op, DualRunOutput p, DualRunOutput u) {
     String portShape = p.shape(op);
     String upstreamShape = u.shape(op);
-    return new AssertionError("DUAL-RUN DIVERGENCE [" + f.half + "|" + f.root + "|"
-        + f.relativePath + "] op=" + op
+    return new AssertionError("DUAL-RUN DIVERGENCE [" + f + "] op=" + op
         + " port=" + portShape
         + " upstream=" + upstreamShape
         + " : record this row in config/dual-run-divergences.tsv (with a reason and a"
@@ -351,7 +333,7 @@ class DualRunIdentityTest {
   }
 
   static String narrowLabel(CorpusFile f, String op, String side) {
-    return f.half + "|" + f.root + "|" + f.relativePath + " op=" + op + " " + side
+    return f + " op=" + op + " " + side
         + " shape (narrowed by a ledger row)";
   }
 
@@ -360,16 +342,21 @@ class DualRunIdentityTest {
         row.upstreamShape, row.reason, row.docRef);
   }
 
-  /** Wire's vendored well-known protos: the import-resolution fallback for both halves. */
+  /** Wire's vendored well-known protos: the import-resolution fallback for both halves.
+   *  Resolved once per run, not once per corpus file. */
   static Path vendoredWellKnownRoot() {
-    Path vendored = TestFiles.upstreamClone()
-        .resolve("wire-schema/src/jvmMain/resources/google/protobuf");
-    if (!Files.isDirectory(vendored)) {
-      throw new IllegalStateException("vendored well-known protos missing from the upstream"
-          + " clone: " + vendored);
+    if (vendoredWellKnown == null) {
+      vendoredWellKnown = TestFiles.upstreamClone()
+          .resolve("wire-schema/src/jvmMain/resources/google/protobuf");
+      if (!Files.isDirectory(vendoredWellKnown)) {
+        throw new IllegalStateException("vendored well-known protos missing from the upstream"
+            + " clone: " + vendoredWellKnown);
+      }
     }
-    return vendored;
+    return vendoredWellKnown;
   }
+
+  private static Path vendoredWellKnown;
 
   static Path cloneOf(String half) {
     return half.equals("upstream") ? TestFiles.upstreamClone() : apicurioClone();

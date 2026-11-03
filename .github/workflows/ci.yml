@@ -54,8 +54,7 @@ jobs:
       - name: read the pinned corpus commits
         id: pins
         run: |
-          echo "upstream=$(python3 -c 'import json; print(json.load(open("config/parity-pins.json"))["upstream"]["resolved_commit"])')" >> "$GITHUB_OUTPUT"
-          echo "apicurio=$(python3 -c 'import json; print(json.load(open("config/parity-pins.json"))["apicurio_registry"]["commit"])')" >> "$GITHUB_OUTPUT"
+          python3 -c 'import json; p=json.load(open("config/parity-pins.json")); print("upstream="+p["upstream"]["resolved_commit"]); print("apicurio="+p["apicurio_registry"]["commit"])' >> "$GITHUB_OUTPUT"
 
       # TASK-14: the parity-coverage suite needs the pinned upstream clone; cache it per
       # pinned commit so reconciliation runs against the exact sources the pins name.

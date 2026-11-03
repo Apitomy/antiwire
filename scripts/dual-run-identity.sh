@@ -120,7 +120,11 @@ errors = int(suite.get("errors", "0"))
 skipped = int(suite.get("skipped", "0"))
 identity_testcases = 0
 problem_texts = []
-coverage = None
+problems = []
+COVERAGE_KEYS = ["invocationsUpstream", "invocationsApicurio", "loadedUpstream",
+                 "loadedApicurio", "threwUpstream", "threwApicurio",
+                 "divergentUpstream", "divergentApicurio"]
+coverages = []
 for tc in suite.iter("testcase"):
     if tc.get("name", "").startswith("identity("):
         identity_testcases += 1
@@ -129,37 +133,43 @@ for tc in suite.iter("testcase"):
             text = node.text or ""
             problem_texts.append(text)
     for out in tc.findall("system-out"):
-        match = re.search(r"DUAL-RUN-COVERAGE invocationsUpstream=(\d+) invocationsApicurio=(\d+)"
-                          r" loadedUpstream=(\d+) loadedApicurio=(\d+)"
-                          r" threwUpstream=(\d+) threwApicurio=(\d+)"
-                          r" divergentUpstream=(\d+) divergentApicurio=(\d+)",
-                          out.text or "")
-        if match:
-            coverage = tuple(int(g) for g in match.groups())
+        for emitted in (out.text or "").splitlines():
+            if not emitted.startswith("DUAL-RUN-COVERAGE "):
+                continue
+            coverage = {}
+            for token in emitted.split(" ")[1:]:
+                key, _, value = token.partition("=")
+                coverage[key] = int(value) if value.isdigit() else None
+            missing = [k for k in COVERAGE_KEYS if coverage.get(k) is None]
+            if missing:
+                problems.append("DUAL-RUN-COVERAGE lacks %s" % ", ".join(missing))
+            else:
+                coverages.append(coverage)
 
-problems = []
 if failures or errors or skipped:
     problems.append("Failures: %d, Errors: %d, Skipped: %d" % (failures, errors, skipped))
-if coverage is None:
+if not coverages:
     problems.append("the DUAL-RUN-COVERAGE census line is absent from the report")
 
+columns = ["half","root","path","op","port_shape","upstream_shape","reason","doc_ref"]
+key_width = columns.index("op") + 1
 rows = []
 with open(ledger) as f:
     lines = [l.rstrip("\n") for l in f if l.strip()]
 for i, line in enumerate(lines):
     if i == 0:
-        if line.split("\t") != ["half","root","path","op","port_shape","upstream_shape","reason","doc_ref"]:
+        if line.split("\t") != columns:
             print("LEDGER-HEADER-MISMATCH", file=sys.stderr)
             sys.exit(2)
         continue
     fields = line.split("\t")
-    if len(fields) != 8:
+    if len(fields) != len(columns):
         print("LEDGER-ROW-FIELD-COUNT %s" % line, file=sys.stderr)
         sys.exit(2)
     rows.append(fields)
 
 for fields in rows:
-    doc_ref = fields[7]
+    doc_ref = fields[columns.index("doc_ref")]
     if ":" not in doc_ref:
         print("BAD-DOC-REF %s" % doc_ref, file=sys.stderr)
         sys.exit(2)
@@ -171,8 +181,8 @@ for fields in rows:
         problems.append("doc_ref anchor missing: %s (%s)" % (doc_ref, anchor))
 
 print("%d %d %d %d" % (tests, identity_testcases, failures + errors + skipped, len(problems)))
-if coverage is not None:
-    print("COVERAGE " + " ".join(str(c) for c in coverage))
+if coverages:
+    print("COVERAGE " + " ".join(str(coverages[0][k]) for k in COVERAGE_KEYS))
 for p in problems:
     print("PROBLEM %s" % p)
 if update == "1":
@@ -187,12 +197,12 @@ if update == "1":
     if stale:
         print("UPDATE-REFUSED-STALE the surefire report predates %s" % " and ".join(stale))
     else:
-        existing = set("\t".join(f[:4]) for f in rows)
+        existing = set("\t".join(f[:key_width]) for f in rows)
         for text in problem_texts:
             for line in text.splitlines():
-                if re.match(r"^(upstream|apicurio)\t[^\t]+\t[^\t]+\t[^\t]+\t[^\t]+\t[^\t]+"
-                            r"\t[^\t]+\t[^\t]+$", line):
-                    if "\t".join(line.split("\t")[:4]) in existing:
+                fields = line.split("\t")
+                if len(fields) == len(columns) and fields[0] in ("upstream", "apicurio"):
+                    if "\t".join(fields[:key_width]) in existing:
                         print("REFUSED-DUPLICATE " + line)
                     else:
                         print("ROW " + line)
@@ -202,18 +212,21 @@ PY
 read -r tests invocations_total bad nproblems _ <<<"$(printf '%s\n' "$verdict" | head -n 1)"
 printf '%s\n' "$verdict" | grep '^PROBLEM ' | sed 's/^PROBLEM //'
 coverage_line="$(printf '%s\n' "$verdict" | grep '^COVERAGE ' | sed 's/^COVERAGE //')"
-if [ -z "$coverage_line" ]; then
-  # The census line is already a PROBLEM; zero the numbers so the invocation and floor
-  # checks fail cleanly instead of comparing against an empty string.
-  coverage_line="0 0 0 0 0 0 0 0"
-fi
-read -r inv_upstream inv_apicurio loaded_upstream loaded_apicurio \
-  threw_upstream threw_apicurio divergent_upstream divergent_apicurio <<<"$coverage_line"
-if [ "$loaded_upstream" -lt "$MIN_LOADED_UPSTREAM" ]; then
-  floor_fail="$floor_fail upstream both-LOADED coverage ${loaded_upstream:-absent} below floor $MIN_LOADED_UPSTREAM;"
-fi
-if [ "$loaded_apicurio" -lt "$MIN_LOADED_APICURIO" ]; then
-  floor_fail="$floor_fail apicurio both-LOADED coverage ${loaded_apicurio:-absent} below floor $MIN_LOADED_APICURIO;"
+if [ -n "$coverage_line" ]; then
+  read -r inv_upstream inv_apicurio loaded_upstream loaded_apicurio \
+    threw_upstream threw_apicurio divergent_upstream divergent_apicurio <<<"$coverage_line"
+  if [ "$loaded_upstream" -lt "$MIN_LOADED_UPSTREAM" ]; then
+    floor_fail="$floor_fail upstream both-LOADED coverage $loaded_upstream below floor $MIN_LOADED_UPSTREAM;"
+  fi
+  if [ "$loaded_apicurio" -lt "$MIN_LOADED_APICURIO" ]; then
+    floor_fail="$floor_fail apicurio both-LOADED coverage $loaded_apicurio below floor $MIN_LOADED_APICURIO;"
+  fi
+  coverage_note="both-LOADED coverage upstream $loaded_upstream, apicurio $loaded_apicurio (both-THREW $threw_upstream/$threw_apicurio, divergent $divergent_upstream/$divergent_apicurio)"
+else
+  # A missing census line is already a PROBLEM; no synthetic zeros, no second diagnosis.
+  inv_upstream=-1
+  inv_apicurio=-1
+  coverage_note="coverage census line absent from the report"
 fi
 
 if [ "$UPDATE" -eq 1 ]; then
@@ -236,7 +249,7 @@ if [ "$UPDATE" -eq 1 ]; then
 fi
 
 corpus_total=$((upstream_count + apicurio_count))
-note="DualRunIdentityTest: $tests tests, $invocations_total identity testcases; census invocations upstream $inv_upstream vs corpus $upstream_count, apicurio $inv_apicurio vs corpus $apicurio_count (total $corpus_total); both-LOADED coverage upstream $loaded_upstream, apicurio $loaded_apicurio (both-THREW $threw_upstream/$threw_apicurio, divergent $divergent_upstream/$divergent_apicurio); Failures/Errors/Skipped: $bad; ledger rows all observed, doc_ref anchors present"
+note="DualRunIdentityTest: $tests tests, $invocations_total identity testcases; census invocations upstream $inv_upstream vs corpus $upstream_count, apicurio $inv_apicurio vs corpus $apicurio_count (total $corpus_total); $coverage_note; Failures/Errors/Skipped: $bad; ledger rows all observed, doc_ref anchors present"
 if [ -n "$floor_fail" ] || [ "$invocations_total" -ne "$corpus_total" ] \
     || [ "$inv_upstream" -ne "$upstream_count" ] || [ "$inv_apicurio" -ne "$apicurio_count" ] \
     || [ "$bad" -ne 0 ] || [ "$nproblems" -ne 0 ]; then

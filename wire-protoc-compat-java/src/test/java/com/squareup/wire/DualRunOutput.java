@@ -113,21 +113,18 @@ final class CorpusFile {
   final String root;
   /** Path of the file relative to its corpus root (forward slashes). */
   final String relativePath;
+  /** The corpus root directory inside its half's pinned clone, resolved once at
+   *  enumeration; the single half-to-clone dispatch site is corpus(). */
+  final java.nio.file.Path rootPath;
 
-  CorpusFile(String half, String root, String relativePath) {
+  CorpusFile(String half, String root, String relativePath, java.nio.file.Path rootPath) {
     this.half = half;
     this.root = root;
     this.relativePath = relativePath;
-  }
-
-  /** The corpus root directory inside its half's pinned clone. */
-  java.nio.file.Path absoluteRoot() {
-    return (half.equals("upstream")
-        ? com.squareup.wire.testing.TestFiles.upstreamClone()
-        : DualRunIdentityTest.apicurioClone()).resolve(root);
+    this.rootPath = rootPath;
   }
 
   @Override public String toString() {
-    return half + "|" + relativePath;
+    return half + "|" + root + "|" + relativePath;
   }
 }

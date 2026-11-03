@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,6 +53,10 @@ final class DualRunDivergences {
 
     String key() {
       return DualRunDivergences.key(half, root, path, op);
+    }
+
+    @Override public String toString() {
+      return key() + " (" + reason + ")";
     }
   }
 
@@ -119,7 +124,8 @@ final class DualRunDivergences {
 
   /** The repo root holding config/, found by walking up from the working directory. */
   static Path repoRoot() {
-    Path dir = java.nio.file.Paths.get("").toAbsolutePath();
+    Path start = Paths.get("").toAbsolutePath();
+    Path dir = start;
     while (dir != null) {
       if (Files.exists(dir.resolve("config").resolve("dual-run-divergences.tsv"))) {
         return dir;
@@ -127,7 +133,29 @@ final class DualRunDivergences {
       dir = dir.getParent();
     }
     throw new IllegalStateException("could not locate config/dual-run-divergences.tsv "
-        + "above " + java.nio.file.Paths.get("").toAbsolutePath());
+        + "above " + start);
+  }
+
+  /** Asserts a row's doc_ref anchor exists in the cited doc (the one Java implementation
+   *  of the '<doc>:<anchor>' format; the suite script checks it again independently). */
+  static void assertDocRefAnchor(DivergenceRow row) {
+    int split = row.docRef.indexOf(':');
+    if (split < 0) {
+      throw new IllegalStateException("ledger row doc_ref has no '<doc>:<anchor>' split: "
+          + row);
+    }
+    Path doc = repoRoot().resolve(row.docRef.substring(0, split).trim());
+    String anchor = row.docRef.substring(split + 1).trim();
+    String text;
+    try {
+      text = new String(Files.readAllBytes(doc), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new IllegalStateException("ledger row doc_ref cites a missing doc: " + row, e);
+    }
+    if (!text.contains(anchor)) {
+      throw new IllegalStateException("ledger row doc_ref anchor missing from " + doc + ": "
+          + row);
+    }
   }
 
   static Path ledgerFile() {
