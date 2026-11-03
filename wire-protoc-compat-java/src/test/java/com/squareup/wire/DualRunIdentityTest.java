@@ -171,6 +171,15 @@ class DualRunIdentityTest {
           if (isUpstream) divergentUpstream++; else divergentApicurio++;
       }
     }
+    System.out.println("DUAL-RUN-COVERAGE"
+        + " invocationsUpstream=" + upstream
+        + " invocationsApicurio=" + apicurio
+        + " loadedUpstream=" + loadedUpstream
+        + " loadedApicurio=" + loadedApicurio
+        + " threwUpstream=" + threwUpstream
+        + " threwApicurio=" + threwApicurio
+        + " divergentUpstream=" + divergentUpstream
+        + " divergentApicurio=" + divergentApicurio);
     if (upstream == 0 || apicurio == 0) {
       throw new AssertionError("a corpus half enumerated empty: upstream=" + upstream
           + " apicurio=" + apicurio);
@@ -181,15 +190,6 @@ class DualRunIdentityTest {
           + " (floor " + MIN_BOTH_LOADED_APICURIO + "); staging regression or corpus change,"
           + " re-measure and move the floors with the corpus");
     }
-    System.out.println("DUAL-RUN-COVERAGE"
-        + " invocationsUpstream=" + upstream
-        + " invocationsApicurio=" + apicurio
-        + " loadedUpstream=" + loadedUpstream
-        + " loadedApicurio=" + loadedApicurio
-        + " threwUpstream=" + threwUpstream
-        + " threwApicurio=" + threwApicurio
-        + " divergentUpstream=" + divergentUpstream
-        + " divergentApicurio=" + divergentApicurio);
   }
 
   /** Census: every committed ledger row was observed this run (a stale row fails) and its

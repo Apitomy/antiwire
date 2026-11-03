@@ -145,6 +145,9 @@ for tc in suite.iter("testcase"):
                 problems.append("DUAL-RUN-COVERAGE lacks %s" % ", ".join(missing))
             else:
                 coverages.append(coverage)
+if len(coverages) > 1:
+    problems.append("%d DUAL-RUN-COVERAGE census lines in the report, expected exactly one"
+                    % len(coverages))
 
 if failures or errors or skipped:
     problems.append("Failures: %d, Errors: %d, Skipped: %d" % (failures, errors, skipped))
@@ -235,10 +238,11 @@ if [ "$UPDATE" -eq 1 ]; then
     echo "RESULT dual-run-identity.update.note=$(printf '%s\n' "$verdict" | sed -n 's/^UPDATE-REFUSED-STALE //p'); no rows appended: re-run mvn verify and --update against the fresh report"
   else
     printf '%s\n' "$verdict" | grep '^REFUSED-DUPLICATE ' | sed 's/^REFUSED-DUPLICATE /--update: refused duplicate key already in the ledger, not appended: /'
-    if [ -s "$ROOT/config/dual-run-divergences.tsv" ] \
+    # The newline guard runs only when rows are about to be appended: the last byte not
+    # being a newline would splice the first appended row onto the last committed line.
+    if printf '%s\n' "$verdict" | grep -q '^ROW ' \
+        && [ -s "$ROOT/config/dual-run-divergences.tsv" ] \
         && [ -n "$(tail -c 1 "$ROOT/config/dual-run-divergences.tsv")" ]; then
-      # The last byte is not a newline: without this guard the appended row would splice
-      # itself onto the last committed line and corrupt the ledger.
       printf '\n' >> "$ROOT/config/dual-run-divergences.tsv"
       echo "--update: ledger had no trailing newline; added one before appending"
     fi

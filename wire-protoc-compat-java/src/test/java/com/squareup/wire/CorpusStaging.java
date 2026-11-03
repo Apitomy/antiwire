@@ -30,8 +30,6 @@ final class CorpusStaging {
   private static final Pattern IMPORT = Pattern.compile(
       "^\\s*import\\s+(?:(?:public|weak)\\s+)?\"([^\"]+)\"\\s*;",
       Pattern.MULTILINE);
-  private static final Pattern BLOCK_COMMENT = Pattern.compile("(?s)/\\*.*?\\*/");
-  private static final Pattern LINE_COMMENT = Pattern.compile("//[^\n]*");
 
   /** One staged corpus file: the per-file temp root and the target's path inside it. */
   static final class Staged {
@@ -96,9 +94,52 @@ final class CorpusStaging {
     return result;
   }
 
-  /** Block comments collapse to one space (tokens must not fuse); line comments vanish. */
+  /**
+   * Strips comments with a quote-aware character scan: proto string literals (both quote
+   * characters, backslash escapes honored) can carry "//" or "/*" (URLs in option values
+   * are common), and a scanner that ate them would truncate the line and hide later
+   * package or import statements. Block comments collapse to one space (tokens must not
+   * fuse); line comments vanish to end of line.
+   */
   static String stripComments(String source) {
-    return LINE_COMMENT.matcher(BLOCK_COMMENT.matcher(source).replaceAll(" ")).replaceAll("");
+    StringBuilder out = new StringBuilder(source.length());
+    boolean inString = false;
+    char quote = 0;
+    for (int i = 0; i < source.length(); i++) {
+      char c = source.charAt(i);
+      if (inString) {
+        out.append(c);
+        if (c == '\\') {
+          if (i + 1 < source.length()) {
+            out.append(source.charAt(++i));
+          }
+        } else if (c == quote) {
+          inString = false;
+        }
+      } else if (c == '"' || c == '\'') {
+        inString = true;
+        quote = c;
+        out.append(c);
+      } else if (c == '/' && i + 1 < source.length() && source.charAt(i + 1) == '/') {
+        while (i < source.length() && source.charAt(i) != '\n') {
+          i++;
+        }
+        if (i < source.length()) {
+          out.append('\n');
+        }
+      } else if (c == '/' && i + 1 < source.length() && source.charAt(i + 1) == '*') {
+        i += 2;
+        while (i + 1 < source.length()
+            && !(source.charAt(i) == '*' && source.charAt(i + 1) == '/')) {
+          i++;
+        }
+        i++;
+        out.append(' ');
+      } else {
+        out.append(c);
+      }
+    }
+    return out.toString();
   }
 
   /** Import content: the corpus root first, then the vendored well-known protos. */
