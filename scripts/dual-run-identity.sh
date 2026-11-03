@@ -4,11 +4,13 @@
 # Reconciles the DualRunIdentityTest surefire report of the build this entry point already
 # ran (the same evidence contract as security-corpus and parity-coverage --execution: the
 # harness runs inside mvn verify, so a suite script that re-ran it would execute the corpus
-# twice per verify.sh for no new evidence). Requires Failures 0, Errors 0, Skipped 0 and an
-# invocation count equal to the corpus size enumerated from config/dual-run-corpus.tsv over
-# BOTH pinned clones, with minimum floors of 150 upstream and 40 apicurio files. Every
-# committed ledger row's doc_ref anchor must exist in its cited doc, so the
-# compatibility-matrix entry cannot rot away from the assertion that enforces it.
+# twice per verify.sh for no new evidence). Requires Failures 0, Errors 0, Skipped 0,
+# per-half identity invocation counts equal to the corpus enumerated from
+# config/dual-run-corpus.tsv over BOTH pinned clones (a stale report from a same-total
+# corpus cannot pass), and per-half both-LOADED coverage from the harness's census line at
+# or above the floors below, so green can never mean empty coverage. Every committed
+# ledger row's doc_ref anchor must exist in its cited doc, so the compatibility-matrix
+# entry cannot rot away from the assertion that enforces it.
 #
 # Contract with scripts/verify.sh: prints RESULT lines; exit 0 (PASS) / 1 (FAIL) / 3
 # (NOT_RUN: the surefire report or a pinned clone is absent).
@@ -23,6 +25,14 @@ set -uo pipefail
 check_modules_consistency
 
 REPORT="$ROOT/wire-protoc-compat-java/target/surefire-reports/TEST-com.squareup.wire.DualRunIdentityTest.xml"
+# Enumerated-corpus floors (files per half) and both-LOADED coverage floors (files per half
+# that both sides loaded through the staged roots), all measured over the pinned corpora
+# (wire 9f62097dfe4995b5709d001ca0187e30ca0530ef, apicurio
+# 23a09ab4e128e8a308efbcc333c5318734126b55) on 2026-11-03: exact measurements, not margins.
+MIN_CORPUS_UPSTREAM=150
+MIN_CORPUS_APICURIO=40
+MIN_LOADED_UPSTREAM=141
+MIN_LOADED_APICURIO=31
 UPDATE=0
 if [ "${1:-}" = "--update" ]; then
   UPDATE=1
@@ -89,11 +99,11 @@ if [ $? -ne 0 ]; then
 fi
 read -r upstream_count apicurio_count <<<"$counts"
 floor_fail=""
-if [ "$upstream_count" -lt 150 ]; then
-  floor_fail=" upstream corpus $upstream_count below floor 150;"
+if [ "$upstream_count" -lt "$MIN_CORPUS_UPSTREAM" ]; then
+  floor_fail=" upstream corpus $upstream_count below floor $MIN_CORPUS_UPSTREAM;"
 fi
-if [ "$apicurio_count" -lt 40 ]; then
-  floor_fail="$floor_fail apicurio corpus $apicurio_count below floor 40;"
+if [ "$apicurio_count" -lt "$MIN_CORPUS_APICURIO" ]; then
+  floor_fail="$floor_fail apicurio corpus $apicurio_count below floor $MIN_CORPUS_APICURIO;"
 fi
 
 # Report reconciliation and doc_ref anchor checks in one python pass.
@@ -107,19 +117,30 @@ tests = int(suite.get("tests", "0"))
 failures = int(suite.get("failures", "0"))
 errors = int(suite.get("errors", "0"))
 skipped = int(suite.get("skipped", "0"))
-invocations = 0
+identity_testcases = 0
 problem_texts = []
+coverage = None
 for tc in suite.iter("testcase"):
     if tc.get("name", "").startswith("identity("):
-        invocations += 1
+        identity_testcases += 1
     for tag in ("failure", "error"):
         for node in tc.findall(tag):
             text = node.text or ""
             problem_texts.append(text)
+    for out in tc.findall("system-out"):
+        match = re.search(r"DUAL-RUN-COVERAGE invocationsUpstream=(\d+) invocationsApicurio=(\d+)"
+                          r" loadedUpstream=(\d+) loadedApicurio=(\d+)"
+                          r" threwUpstream=(\d+) threwApicurio=(\d+)"
+                          r" divergentUpstream=(\d+) divergentApicurio=(\d+)",
+                          out.text or "")
+        if match:
+            coverage = tuple(int(g) for g in match.groups())
 
 problems = []
 if failures or errors or skipped:
     problems.append("Failures: %d, Errors: %d, Skipped: %d" % (failures, errors, skipped))
+if coverage is None:
+    problems.append("the DUAL-RUN-COVERAGE census line is absent from the report")
 
 rows = []
 with open(ledger) as f:
@@ -148,7 +169,9 @@ for fields in rows:
     if not os.path.isfile(path) or anchor not in open(path).read():
         problems.append("doc_ref anchor missing: %s (%s)" % (doc_ref, anchor))
 
-print("%d %d %d %d" % (tests, invocations, failures + errors + skipped, len(problems)))
+print("%d %d %d %d" % (tests, identity_testcases, failures + errors + skipped, len(problems)))
+if coverage is not None:
+    print("COVERAGE " + " ".join(str(c) for c in coverage))
 for p in problems:
     print("PROBLEM %s" % p)
 if update == "1":
@@ -159,9 +182,22 @@ if update == "1":
 PY
 )" || { echo "RESULT dual-run-identity.status=FAIL"; echo "RESULT dual-run-identity.note=the surefire report or the divergence ledger could not be parsed"; exit "$EXIT_FAIL"; }
 
-read -r tests invocations bad nproblems _ <<<"$(printf '%s\n' "$verdict" | head -n 1)"
+read -r tests invocations_total bad nproblems _ <<<"$(printf '%s\n' "$verdict" | head -n 1)"
 printf '%s\n' "$verdict" | grep '^PROBLEM ' | sed 's/^PROBLEM //'
-corpus_total=$((upstream_count + apicurio_count))
+coverage_line="$(printf '%s\n' "$verdict" | grep '^COVERAGE ' | sed 's/^COVERAGE //')"
+if [ -z "$coverage_line" ]; then
+  # The census line is already a PROBLEM; zero the numbers so the invocation and floor
+  # checks fail cleanly instead of comparing against an empty string.
+  coverage_line="0 0 0 0 0 0 0 0"
+fi
+read -r inv_upstream inv_apicurio loaded_upstream loaded_apicurio \
+  threw_upstream threw_apicurio divergent_upstream divergent_apicurio <<<"$coverage_line"
+if [ "$loaded_upstream" -lt "$MIN_LOADED_UPSTREAM" ]; then
+  floor_fail="$floor_fail upstream both-LOADED coverage ${loaded_upstream:-absent} below floor $MIN_LOADED_UPSTREAM;"
+fi
+if [ "$loaded_apicurio" -lt "$MIN_LOADED_APICURIO" ]; then
+  floor_fail="$floor_fail apicurio both-LOADED coverage ${loaded_apicurio:-absent} below floor $MIN_LOADED_APICURIO;"
+fi
 
 if [ "$UPDATE" -eq 1 ]; then
   printf '%s\n' "$verdict" | grep '^ROW ' | sed 's/^ROW //' >> "$ROOT/config/dual-run-divergences.tsv"
@@ -169,8 +205,11 @@ if [ "$UPDATE" -eq 1 ]; then
   echo "--update: appended $appended observed divergence row(s) to config/dual-run-divergences.tsv for review"
 fi
 
-note="DualRunIdentityTest: $tests tests, $invocations identity invocations vs corpus size $corpus_total (upstream $upstream_count, apicurio $apicurio_count), Failures/Errors/Skipped: $bad; ledger rows all observed, doc_ref anchors present"
-if [ -n "$floor_fail" ] || [ "$invocations" -ne "$corpus_total" ] || [ "$bad" -ne 0 ] || [ "$nproblems" -ne 0 ]; then
+corpus_total=$((upstream_count + apicurio_count))
+note="DualRunIdentityTest: $tests tests, $invocations_total identity testcases; census invocations upstream $inv_upstream vs corpus $upstream_count, apicurio $inv_apicurio vs corpus $apicurio_count (total $corpus_total); both-LOADED coverage upstream $loaded_upstream, apicurio $loaded_apicurio (both-THREW $threw_upstream/$threw_apicurio, divergent $divergent_upstream/$divergent_apicurio); Failures/Errors/Skipped: $bad; ledger rows all observed, doc_ref anchors present"
+if [ -n "$floor_fail" ] || [ "$invocations_total" -ne "$corpus_total" ] \
+    || [ "$inv_upstream" -ne "$upstream_count" ] || [ "$inv_apicurio" -ne "$apicurio_count" ] \
+    || [ "$bad" -ne 0 ] || [ "$nproblems" -ne 0 ]; then
   echo "RESULT dual-run-identity.status=FAIL"
   echo "RESULT dual-run-identity.note=$floor_fail$note"
   exit "$EXIT_FAIL"

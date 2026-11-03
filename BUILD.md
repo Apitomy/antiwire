@@ -54,11 +54,13 @@ any reactor-scoped run.
 5. runs `scripts/consumer-check-java11.sh`: compiles and runs the consumer (ProtoWriter and loading-layer smokes)
    on an actual Java 11 JVM against the module jars;
 6. runs `scripts/surface-check.sh` (suite `surface-check`, TASK-34): the source-compatibility
-   surface check described below. The dual-run identity suite (TASK-39, PENDING at the time
-   of writing) reconciles the DualRunIdentityTest surefire report of step 2: corpus floors
-   (150 upstream, 40 apicurio files), Failures/Errors/Skipped 0, and every divergence-ledger
-   row's doc anchor present. The full list of suites, 13 ACTIVE at the time of writing, is
-   the registry in `config/verify-suites.json`; this numbered list is a summary of the steps.
+   surface check described below. The dual-run identity suite (TASK-39, ACTIVE) reconciles
+   the DualRunIdentityTest surefire report of step 2: per-half invocation counts against the
+   corpus enumeration, corpus floors (150 upstream, 40 apicurio files), both-LOADED coverage
+   floors (141 upstream, 31 apicurio files), Failures/Errors/Skipped 0, and every
+   divergence-ledger row's doc anchor present. The full list of suites, 14 ACTIVE at the
+   time of writing, is the registry in `config/verify-suites.json`; this numbered list is a
+   summary of the steps.
 
 ### Source-compatibility surface check
 

@@ -8,15 +8,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * One implementation side of the TASK-39 dual-run identity harness. The same root and file
- * paths go to both sides, so messages and locations match by construction; a load failure
- * IS a result: {@link #load} never throws.
+ * One implementation side of the TASK-39 dual-run identity harness. The same staged root
+ * and file paths (CorpusStaging) go to both sides, so messages and locations match by
+ * construction; a load failure IS a result: {@link #load} never throws.
  */
 interface SchemaSide {
-  /** "port" or "upstream"; appears in every label and ledger row. */
-  String name();
-
-  /** Loads root/relativePath with sourcePath=[file], protoPath=[root]. */
+  /** Loads root/relativePath with sourcePath=[file], protoPath=[root]; both are the
+   *  package-mirroring staged paths, never the flat corpus layout. */
   DualRunOutput load(Path root, String relativePath);
 
   /** Decides DEC-15 value shapes and bounds for one side's Extensions/Reserved values. */
@@ -97,17 +95,13 @@ interface SchemaSide {
         bounds.add(SchemaSide.boundsOf(value));
         shapes.add(SchemaSide.shapeOf(value));
       }
-      probes.add(new RangeProbe(owner, bounds, String.join(",", shapes)));
+      probes.add(new RangeProbe(owner, bounds, shapes));
     }
   }
 }
 
 /** The port side: com.squareup.wire.* from wire-schema-java. */
 final class PortSide implements SchemaSide {
-  @Override public String name() {
-    return "port";
-  }
-
   @Override public DualRunOutput load(Path root, String relativePath) {
     Path file = root.resolve(relativePath);
     try {
@@ -174,10 +168,6 @@ final class PortSide implements SchemaSide {
 
 /** The upstream side: real Wire 7.1.0 under io.apitomy.antiwire.parity.wire.*. */
 final class UpstreamSide implements SchemaSide {
-  @Override public String name() {
-    return "upstream";
-  }
-
   @Override public DualRunOutput load(Path root, String relativePath) {
     Path file = root.resolve(relativePath);
     try {

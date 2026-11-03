@@ -84,15 +84,17 @@ final class RangeProbe {
   /** Flattened {start, endInclusive} pairs, identical on both sides. */
   final List<int[]> bounds;
   /**
-   * Value shapes of the declaration as data, comma-joined in declaration order:
-   * "Integer", "int[]" (port) or "kotlin.ranges.IntRange" (upstream).
+   * Value shapes of the declaration as data, one entry per value in declaration order:
+   * "Integer", "int[]" (port) or "kotlin.ranges.IntRange" (upstream). One declaration can
+   * carry several values ("extensions 100 to 199, 1000 to max;"), so the comparison is
+   * element-wise.
    */
-  final String elementType;
+  final List<String> elementTypes;
 
-  RangeProbe(String owner, List<int[]> bounds, String elementType) {
+  RangeProbe(String owner, List<int[]> bounds, List<String> elementTypes) {
     this.owner = owner;
     this.bounds = bounds;
-    this.elementType = elementType;
+    this.elementTypes = elementTypes;
   }
 }
 
@@ -100,12 +102,26 @@ final class RangeProbe {
 final class CorpusFile {
   /** "upstream" or "apicurio"; the clone half the file lives in. */
   final String half;
+  /**
+   * Corpus root from config/dual-run-corpus.tsv, clone-relative (for example
+   * utils/protobuf-schema-utilities/src/test/proto): the physical-file identity inside the
+   * pinned clone, because relativePath alone is ambiguous where roots repeat file names.
+   */
+  final String root;
   /** Path of the file relative to its corpus root (forward slashes). */
   final String relativePath;
 
-  CorpusFile(String half, String relativePath) {
+  CorpusFile(String half, String root, String relativePath) {
     this.half = half;
+    this.root = root;
     this.relativePath = relativePath;
+  }
+
+  /** The corpus root directory inside its half's pinned clone. */
+  java.nio.file.Path absoluteRoot() {
+    return (half.equals("upstream")
+        ? com.squareup.wire.testing.TestFiles.upstreamClone()
+        : DualRunIdentityTest.apicurioClone()).resolve(root);
   }
 
   @Override public String toString() {

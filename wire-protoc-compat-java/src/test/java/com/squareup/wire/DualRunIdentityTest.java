@@ -7,10 +7,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,15 +23,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * TASK-39 dual-run output-identity harness: every corpus .proto is loaded once per file
- * into a fresh schema on both sides, real Wire 7.1.0 (relocated fixture under
- * io.apitomy.antiwire.parity.wire.*) and the port (com.squareup.wire.*), and asserted
+ * TASK-39 dual-run output-identity harness: every corpus .proto is staged the way a
+ * consumer like Apicurio Registry stages it (a per-file temp root with the file at a path
+ * mirroring its declared package plus its staged import closure, CorpusStaging) and loaded
+ * once per file into a fresh schema on both sides, real Wire 7.1.0 (relocated fixture under
+ * io.apitomy.antiwire.parity.wire.*) and the port (com.squareup.wire.*), asserting
  * identical: raw descriptor bytes (SchemaEncoder.encode, no stripper: this is Wire versus
  * Wire), canonical text (ProtoFile.toSchema()), load outcome with normalized failure
  * chains, and the DEC-15 range element-type divergence in exactly the recorded shape.
  * A difference with no row in config/dual-run-divergences.tsv fails with the row to
- * record; a committed row nothing observed, or whose doc_ref anchor is missing, fails the
- * census tests. Nothing is skipped and nothing is ignored.
+ * record; a committed row nothing observed, or whose doc_ref anchor is missing from the
+ * cited doc, fails the census tests. Nothing is skipped and nothing is ignored. The
+ * corpus census floors the per-half both-LOADED coverage (staged loading measured
+ * 2026-11-03: upstream 141, apicurio 31) so a green run can never mean empty coverage.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DualRunIdentityTest {
@@ -42,10 +45,18 @@ class DualRunIdentityTest {
   /** (half|path|op) keys observed this run; feeds the stale-row census. */
   static final Set<String> OBSERVED = new LinkedHashSet<>();
 
-  static List<CorpusFile> corpusCache;
+  /** Per-file load outcome this run (both-LOADED / both-THREW / divergent); feeds the
+   *  coverage census. */
+  static final Map<String, String> OUTCOMES = new LinkedHashMap<>();
 
-  /** Corpus file -> its root, filled once by corpus() (enumerate-once invariant). */
-  static final Map<CorpusFile, Path> ROOTS = new java.util.LinkedHashMap<>();
+  /** Both-LOADED coverage floors per half, at the values measured on 2026-11-03 over the
+   *  pinned corpora (wire 9f62097dfe4995b5709d001ca0187e30ca0530ef, apicurio
+   *  23a09ab4e128e8a308efbcc333c5318734126b55) once package-mirroring staging landed:
+   *  exact measurements, not margins, so coverage can grow but never silently shrink. */
+  static final int MIN_BOTH_LOADED_UPSTREAM = 141;
+  static final int MIN_BOTH_LOADED_APICURIO = 31;
+
+  static List<CorpusFile> corpusCache;
 
   /** Enumerates config/dual-run-corpus.tsv roots over both pinned clones, ONCE per run
    *  into the shared list both sides consume (enumerate-once invariant). Clone absent
@@ -55,7 +66,8 @@ class DualRunIdentityTest {
       return corpusCache;
     }
     List<CorpusFile> files = new ArrayList<>();
-    try (Stream<String> lines = Files.lines(repoRoot().resolve("config/dual-run-corpus.tsv"),
+    try (Stream<String> lines = Files.lines(
+        DualRunDivergences.repoRoot().resolve("config/dual-run-corpus.tsv"),
         StandardCharsets.UTF_8)) {
       List<String[]> roots = new ArrayList<>();
       lines.filter(l -> !l.isEmpty())
@@ -70,10 +82,10 @@ class DualRunIdentityTest {
           first = false;
           continue;
         }
-        Path clone = fields[0].equals("upstream") ? TestFiles.upstreamClone() : apicurioClone();
-        Path root = clone.resolve(fields[1]);
+        Path root = cloneOf(fields[0]).resolve(fields[1]);
         if (!Files.isDirectory(root)) {
-          throw new IllegalStateException("corpus root missing in " + fields[0] + " clone: " + root);
+          throw new IllegalStateException("corpus root missing in " + fields[0] + " clone: "
+              + root);
         }
         // TestFiles.findFiles is upstream wire-test-utils' recursive walker; the .proto
         // filter and the deterministic sort sit on top of it.
@@ -82,9 +94,7 @@ class DualRunIdentityTest {
             .filter(p -> p.endsWith(".proto"))
             .sorted()
             .collect(java.util.stream.Collectors.toList())) {
-          CorpusFile corpusFile = new CorpusFile(fields[0], relative);
-          files.add(corpusFile);
-          ROOTS.put(corpusFile, root);
+          files.add(new CorpusFile(fields[0], fields[1], relative));
         }
       }
     } catch (IOException e) {
@@ -97,38 +107,88 @@ class DualRunIdentityTest {
   @Order(1)
   @ParameterizedTest(name = "{index}: {0}")
   @MethodSource("corpus")
-  void identity(CorpusFile file) {
-    Path root = corpusRoot(file);
-    DualRunOutput port = PORT.load(root, file.relativePath);
-    DualRunOutput upstream = UPSTREAM.load(root, file.relativePath);
+  void identity(CorpusFile file) throws Exception {
+    CorpusStaging.Staged staged =
+        CorpusStaging.stage(file.absoluteRoot(), file.relativePath, vendoredWellKnownRoot());
+    DualRunOutput port;
+    DualRunOutput upstream;
+    try {
+      port = PORT.load(staged.root, staged.relativePath);
+      upstream = UPSTREAM.load(staged.root, staged.relativePath);
+    } finally {
+      CorpusStaging.deleteRecursively(staged.root);
+    }
+    recordOutcome(file, port, upstream);
     assertOutcomeKind(file, port, upstream);
-    assertFailureChain(file, port, upstream);
-    assertDescriptorBytes(file, port, upstream);
-    assertCanonicalText(file, port, upstream);
-    assertRangeProbe(file, port, upstream);
+    // The other four ops compare like outcomes only: a mixed pair is the load-outcome
+    // op's business, where a ledger row legitimizes the outcome difference.
+    if (port.kind == DualRunOutput.Kind.THREW && upstream.kind == DualRunOutput.Kind.THREW) {
+      assertFailureChain(file, port, upstream);
+    } else if (port.kind == DualRunOutput.Kind.LOADED
+        && upstream.kind == DualRunOutput.Kind.LOADED) {
+      assertDescriptorBytes(file, port, upstream);
+      assertCanonicalText(file, port, upstream);
+      assertRangeProbe(file, port, upstream);
+    }
   }
 
-  /** Census: every corpus root from the TSV was enumerated non-empty; the pins moved with
-   *  the corpus, not under it. */
+  /** Census: every corpus half enumerated non-empty (the pins moved with the corpus, not
+   *  under it), every enumerated file loaded this run, and the measured both-LOADED
+   *  coverage per half at or above its floor, so green cannot mean empty coverage. Prints
+   *  the DUAL-RUN-COVERAGE line (per-half invocation and outcome counts) the suite script
+   *  checks against its own per-half corpus enumeration, so a stale report from a
+   *  same-total corpus cannot pass. */
   @Order(2)
   @Test void corpusCensus() {
-    List<CorpusFile> files = corpus();
-    if (files.isEmpty()) {
-      throw new AssertionError("dual-run corpus enumerated empty");
-    }
     int upstream = 0;
     int apicurio = 0;
-    for (CorpusFile file : files) {
-      if (file.half.equals("upstream")) {
+    int loadedUpstream = 0;
+    int loadedApicurio = 0;
+    int threwUpstream = 0;
+    int threwApicurio = 0;
+    int divergentUpstream = 0;
+    int divergentApicurio = 0;
+    for (CorpusFile file : corpus()) {
+      String outcome = OUTCOMES.get(file.half + "|" + file.root + "|" + file.relativePath);
+      if (outcome == null) {
+        throw new AssertionError("corpus file was never loaded this run: " + file);
+      }
+      boolean isUpstream = file.half.equals("upstream");
+      if (isUpstream) {
         upstream++;
       } else {
         apicurio++;
+      }
+      switch (outcome) {
+        case "both-LOADED":
+          if (isUpstream) loadedUpstream++; else loadedApicurio++;
+          break;
+        case "both-THREW":
+          if (isUpstream) threwUpstream++; else threwApicurio++;
+          break;
+        default:
+          if (isUpstream) divergentUpstream++; else divergentApicurio++;
       }
     }
     if (upstream == 0 || apicurio == 0) {
       throw new AssertionError("a corpus half enumerated empty: upstream=" + upstream
           + " apicurio=" + apicurio);
     }
+    if (loadedUpstream < MIN_BOTH_LOADED_UPSTREAM || loadedApicurio < MIN_BOTH_LOADED_APICURIO) {
+      throw new AssertionError("both-LOADED coverage below floor: upstream=" + loadedUpstream
+          + " (floor " + MIN_BOTH_LOADED_UPSTREAM + "), apicurio=" + loadedApicurio
+          + " (floor " + MIN_BOTH_LOADED_APICURIO + "); staging regression or corpus change,"
+          + " re-measure and move the floors with the corpus");
+    }
+    System.out.println("DUAL-RUN-COVERAGE"
+        + " invocationsUpstream=" + upstream
+        + " invocationsApicurio=" + apicurio
+        + " loadedUpstream=" + loadedUpstream
+        + " loadedApicurio=" + loadedApicurio
+        + " threwUpstream=" + threwUpstream
+        + " threwApicurio=" + threwApicurio
+        + " divergentUpstream=" + divergentUpstream
+        + " divergentApicurio=" + divergentApicurio);
   }
 
   /** Census: every committed ledger row was observed this run. A stale row fails. */
@@ -153,20 +213,12 @@ class DualRunIdentityTest {
 
   static void assertFailureChain(CorpusFile f, DualRunOutput p, DualRunOutput u) {
     String op = "failure-chain";
-    // Both sides must have thrown for a chain comparison; mixed outcomes are the
-    // load-outcome op and were already reported there.
-    if (p.kind != DualRunOutput.Kind.THREW || u.kind != DualRunOutput.Kind.THREW) {
-      return;
-    }
     assertNarrowedOrDiverge(op, f, p, u,
         p.shape(op).equals(u.shape(op)));
   }
 
   static void assertDescriptorBytes(CorpusFile f, DualRunOutput p, DualRunOutput u) {
     String op = "descriptor-bytes";
-    if (p.kind != DualRunOutput.Kind.LOADED || u.kind != DualRunOutput.Kind.LOADED) {
-      return;
-    }
     // RAW-BYTE, no UnwantedValueStripper: that stripper is the protoc oracle's
     // knowingly-lossy lens; Wire-vs-Wire needs none.
     assertNarrowedOrDiverge(op, f, p, u, Arrays.equals(p.descriptorBytes, u.descriptorBytes));
@@ -174,22 +226,18 @@ class DualRunIdentityTest {
 
   static void assertCanonicalText(CorpusFile f, DualRunOutput p, DualRunOutput u) {
     String op = "canonical-text";
-    if (p.kind != DualRunOutput.Kind.LOADED || u.kind != DualRunOutput.Kind.LOADED) {
-      return;
-    }
     assertNarrowedOrDiverge(op, f, p, u, p.canonicalText.equals(u.canonicalText));
   }
 
   /**
    * DEC-15 narrowed assertion, inline rationale, not a ledger row: bounds equal AND
-   * element types equal unless the range case differs exactly as port="int[]" versus
-   * upstream="kotlin.ranges.IntRange". If upstream ever returns int[] this fails loudly.
+   * element types equal, compared element-wise because one extensions declaration can
+   * carry several values ("extensions 100 to 199, 1000 to max;" is ONE declaration with
+   * two values); each port "int[]" pairs with an upstream "kotlin.ranges.IntRange". If
+   * upstream ever returns int[] this fails loudly.
    */
   static void assertRangeProbe(CorpusFile f, DualRunOutput p, DualRunOutput u) {
     String op = "range-probe";
-    if (p.kind != DualRunOutput.Kind.LOADED || u.kind != DualRunOutput.Kind.LOADED) {
-      return;
-    }
     assertEquals(p.rangeProbes.size(), u.rangeProbes.size(),
         "range probe count diverged on " + f.half + "|" + f.relativePath);
     for (int i = 0; i < p.rangeProbes.size(); i++) {
@@ -200,15 +248,22 @@ class DualRunIdentityTest {
             + f.half + "|" + f.relativePath + ": " + port.owner + " vs " + upstream.owner);
       }
       assertBoundsEqual(port, upstream, f, port.owner);
-      if (port.elementType.contains("int[]")) {
-        // DEC-15: the port stores int[] pairs where real Wire stores kotlin.ranges.IntRange.
-        assertEquals("kotlin.ranges.IntRange", upstream.elementType,
-            "DEC-15 drifted on " + f.half + "|" + f.relativePath + " " + port.owner
-                + ": port=" + port.elementType + " upstream=" + upstream.elementType);
-      } else {
-        assertEquals(port.elementType, upstream.elementType,
-            "range element type diverged on " + f.half + "|" + f.relativePath
-                + " " + port.owner);
+      assertEquals(port.elementTypes.size(), upstream.elementTypes.size(),
+          "range value count diverged on " + f.half + "|" + f.relativePath
+              + " " + port.owner);
+      for (int v = 0; v < port.elementTypes.size(); v++) {
+        String portShape = port.elementTypes.get(v);
+        if (portShape.equals("int[]")) {
+          // DEC-15: the port stores int[] pairs where real Wire stores kotlin.ranges.IntRange.
+          assertEquals("kotlin.ranges.IntRange", upstream.elementTypes.get(v),
+              "DEC-15 drifted on " + f.half + "|" + f.relativePath + " " + port.owner
+                  + " #" + v + ": port=" + portShape
+                  + " upstream=" + upstream.elementTypes.get(v));
+        } else {
+          assertEquals(portShape, upstream.elementTypes.get(v),
+              "range element type diverged on " + f.half + "|" + f.relativePath
+                  + " " + port.owner + " #" + v);
+        }
       }
     }
     OBSERVED.add(DualRunDivergences.key(f.half, f.relativePath, op));
@@ -233,6 +288,13 @@ class DualRunIdentityTest {
     } else {
       throw divergence(f, op, p, u);
     }
+  }
+
+  static void recordOutcome(CorpusFile f, DualRunOutput p, DualRunOutput u) {
+    String outcome = p.kind != u.kind
+        ? "divergent"
+        : p.kind == DualRunOutput.Kind.LOADED ? "both-LOADED" : "both-THREW";
+    OUTCOMES.put(f.half + "|" + f.root + "|" + f.relativePath, outcome);
   }
 
   static void assertBoundsEqual(RangeProbe port, RangeProbe upstream, CorpusFile f,
@@ -271,16 +333,19 @@ class DualRunIdentityTest {
         row.reason, row.docRef);
   }
 
-  static Path repoRoot() {
-    return DualRunDivergences.repoRoot();
+  /** Wire's vendored well-known protos: the import-resolution fallback for both halves. */
+  static Path vendoredWellKnownRoot() {
+    Path vendored = TestFiles.upstreamClone()
+        .resolve("wire-schema/src/jvmMain/resources/google/protobuf");
+    if (!Files.isDirectory(vendored)) {
+      throw new IllegalStateException("vendored well-known protos missing from the upstream"
+          + " clone: " + vendored);
+    }
+    return vendored;
   }
 
-  static Path corpusRoot(CorpusFile file) {
-    Path root = ROOTS.get(file);
-    if (root == null) {
-      throw new IllegalStateException("corpus file was never enumerated: " + file);
-    }
-    return root;
+  static Path cloneOf(String half) {
+    return half.equals("upstream") ? TestFiles.upstreamClone() : apicurioClone();
   }
 
   static Path apicurioClone() {
@@ -296,13 +361,14 @@ class DualRunIdentityTest {
 
   static String sha256(byte[] bytes) {
     try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      java.security.MessageDigest digest =
+          java.security.MessageDigest.getInstance("SHA-256");
       StringBuilder sb = new StringBuilder();
       for (byte b : digest.digest(bytes)) {
         sb.append(String.format("%02x", b));
       }
       return sb.toString();
-    } catch (NoSuchAlgorithmException e) {
+    } catch (java.security.NoSuchAlgorithmException e) {
       throw new IllegalStateException(e);
     }
   }

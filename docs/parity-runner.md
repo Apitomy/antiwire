@@ -103,17 +103,20 @@ is never release parity.
 - **TASK-17 (security corpus)** verifies the final required suite and may add its own map
   section for corpus cases.
 - **TASK-39 (dual-run identity)** registers the `dual-run-identity` suite: the harness
-  (`DualRunIdentityTest`, `wire-protoc-compat-java`) loads every corpus `.proto` through
-  real Wire 7.1.0 (the relocated fixture) and the port in one JVM and asserts identical
-  load outcomes, root-cause failure chains, raw descriptor bytes and canonical text. Its
-  ledger is `config/dual-run-divergences.tsv`; every observed difference must land there as
+  (`DualRunIdentityTest`, `wire-protoc-compat-java`) stages every corpus `.proto` the way a
+  consumer like Apicurio Registry stages it (per-file temp root, package-mirroring path,
+  staged import closure) and loads it through real Wire 7.1.0 (the relocated fixture) and
+  the port in one JVM, asserting identical load outcomes, root-cause failure chains, raw
+  descriptor bytes and canonical text. Its ledger is
+  `config/dual-run-divergences.tsv`; every observed difference must land there as
   a committed row citing a `docs/compatibility-matrix.md` anchor (subsection
   task-39-dual-run-divergences), and a committed row nothing observes any more fails the
   stale-row census. Corpus bump procedure: move the pin (upstream in `upstream`, registry in
   `apicurio_registry`), re-run `scripts/fetch-upstream.sh` and `scripts/fetch-apicurio.sh`
   with fresh clone paths, re-run the harness, and account for every delta as a port fix or
-  a ledger row with its doc anchor; floors in `scripts/dual-run-identity.sh` catch silent
-  corpus shrinkage. `bash scripts/dual-run-identity.sh --update` appends the observed
+  a ledger row with its doc anchor; floors in `scripts/dual-run-identity.sh` (corpus counts
+  and both-LOADED coverage per half) catch silent corpus shrinkage and silent coverage
+  loss. `bash scripts/dual-run-identity.sh --update` appends the observed
   divergences to the ledger for a reviewed diff.
 
 ## Bump procedure
