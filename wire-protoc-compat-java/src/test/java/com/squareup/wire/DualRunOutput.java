@@ -1,6 +1,7 @@
 package com.squareup.wire;
 
 import java.util.List;
+import okio.ByteString;
 
 /**
  * TASK-39 dual-run identity harness value types. The compare boundary passes only bytes,
@@ -54,10 +55,12 @@ final class DualRunOutput {
         }
         return sb.toString();
       case "descriptor-bytes":
-        return "len=" + descriptorBytes.length + " sha256=" + DualRunIdentityTest.sha256(descriptorBytes);
+        return "len=" + descriptorBytes.length + " sha256="
+            + ByteString.of(descriptorBytes).sha256().hex();
       case "canonical-text":
         return "len=" + canonicalText.length() + " sha256="
-            + DualRunIdentityTest.sha256(canonicalText.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            + ByteString.of(canonicalText.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                .sha256().hex();
       default:
         throw new IllegalArgumentException("unknown op: " + op);
     }

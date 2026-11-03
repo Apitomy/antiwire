@@ -104,6 +104,25 @@ find_module_jar() {
   return "$EXIT_FAIL"
 }
 
+# Shared tail of the pinned-clone fetch scripts (fetch-upstream.sh, fetch-apicurio.sh):
+# put the working tree AT the pinned commit, then reject a dirty tree, because the parity
+# suites read files, not refs, so a modified clone would silently reconcile or compare
+# against edited sources. Prints the restore commands on rejection.
+# <clone-path> <pinned-commit> <what-reads-the-tree>
+checkout_at_pin_and_require_clean() { # <clone-path> <commit> <subject>
+  git -C "$1" checkout --quiet --detach "$2"
+  if [ -n "$(git -C "$1" status --porcelain)" ]; then
+    {
+      echo "FAIL: $1 has local modifications; $3 reads the working tree," >&2
+      echo "  so a modified clone is rejected. Restore it with:" >&2
+      echo "    git -C $1 restore ." >&2
+      echo "    git -C $1 checkout --quiet --detach $2" >&2
+      echo "    git -C $1 clean -fd" >&2
+    } >&2
+    return "$EXIT_FAIL"
+  fi
+}
+
 # Downloads the pinned upstream wire-compiler 7.1.0 toolchain jars into $1 and prints the
 # classpath string for `java -cp` (shared by the fixture generators; DEC-5 build-time tools).
 fetch_wire_compiler_jars() { # <dir>

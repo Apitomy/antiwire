@@ -6,6 +6,8 @@
 # an existing clone is reused after the pin check passes.
 set -euo pipefail
 
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PINS="$ROOT/config/parity-pins.json"
 
@@ -45,15 +47,6 @@ if ! git -C "$CLONE_PATH" rev-parse -q --verify "$TAG^{tag}" >/dev/null; then
   git -C "$CLONE_PATH" fetch origin "refs/tags/$TAG:refs/tags/$TAG" --force
 fi
 verify_pin
-# The pin constrains refs; reconciliation reads the working tree, so put the tree AT the pin.
-git -C "$CLONE_PATH" checkout --quiet --detach "$COMMIT"
-
-# A locally modified clone is not the pinned sources: reconciliation reads files, not
-# refs, so a dirty worktree would silently reconcile against edited upstream tests.
-if [ -n "$(git -C "$CLONE_PATH" status --porcelain)" ]; then
-  echo "FAIL: $CLONE_PATH has local modifications; reconciliation reads the working tree," >&2
-  echo "  so a modified clone is rejected. Restore it with:" >&2
-  echo "    git -C $CLONE_PATH checkout --quiet --detach $COMMIT" >&2
-  echo "    git -C $CLONE_PATH clean -fd" >&2
-  exit 1
-fi
+# The pin constrains refs; reconciliation reads the working tree, so the tree goes AT the
+# pin and a dirty tree is rejected (lib.sh tail, shared with fetch-apicurio.sh).
+checkout_at_pin_and_require_clean "$CLONE_PATH" "$COMMIT" "reconciliation"

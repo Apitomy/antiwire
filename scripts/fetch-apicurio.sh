@@ -9,6 +9,8 @@
 # put AT the pin with a detached checkout, rejecting a dirty tree for the same reason.
 set -euo pipefail
 
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PINS="$ROOT/config/parity-pins.json"
 
@@ -24,15 +26,11 @@ read -r REPO COMMIT CLONE_DEFAULT <<<"$PINS_LINE"
 CLONE_PATH="${1:-${ANTIWIRE_APICURIO:-$CLONE_DEFAULT}}"
 
 verify_pin() {
-  local head
-  head="$(git -C "$CLONE_PATH" rev-parse HEAD)"
+  # HEAD equality is guaranteed by the checkout at the pin that precedes this call (the
+  # head != COMMIT branch was unreachable after it); what stays checked is that the
+  # pinned object is exactly what the clone carries.
   if ! git -C "$CLONE_PATH" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
     echo "FAIL: $CLONE_PATH does not contain the pinned apicurio commit $COMMIT." >&2
-    echo "  re-run with a fresh clone path or update config/parity-pins.json per docs/parity-runner.md" >&2
-    return 1
-  fi
-  if [ "$head" != "$COMMIT" ]; then
-    echo "FAIL: $CLONE_PATH HEAD $head is not the pinned apicurio commit $COMMIT." >&2
     echo "  re-run with a fresh clone path or update config/parity-pins.json per docs/parity-runner.md" >&2
     return 1
   fi
@@ -69,17 +67,8 @@ if ! git -C "$CLONE_PATH" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
   fi
   git -C "$CLONE_PATH" fetch "$ANTIWIRE_APICURIO_SOURCE" "$COMMIT" --force
 fi
-# The pin is a bare commit: reconciliation reads the working tree, so put the tree AT the
-# pin before the identity check (a fresh clone or cache refill starts on a branch head).
-git -C "$CLONE_PATH" checkout --quiet --detach "$COMMIT"
+# The pin is a bare commit and the corpus harness reads the working tree, so the tree
+# goes AT the pin and a dirty tree is rejected (lib.sh tail, shared with
+# fetch-upstream.sh); a fresh clone or cache refill starts on a branch head.
+checkout_at_pin_and_require_clean "$CLONE_PATH" "$COMMIT" "the corpus harness"
 verify_pin
-
-# A locally modified clone is not the pinned sources: the corpus is read from files, not
-# refs, so a dirty worktree would silently compare against edited schemas.
-if [ -n "$(git -C "$CLONE_PATH" status --porcelain)" ]; then
-  echo "FAIL: $CLONE_PATH has local modifications; the corpus is read from files, not" >&2
-  echo "  refs, so a modified clone is rejected. Restore it with:" >&2
-  echo "    git -C $CLONE_PATH checkout --quiet --detach $COMMIT" >&2
-  echo "    git -C $CLONE_PATH clean -fd" >&2
-  exit 1
-fi

@@ -125,11 +125,22 @@ public final class TestFiles {
    * so a clone-dependent suite cannot silently not run.
    */
   public static Path upstreamClone() {
-    String clone = System.getenv("ANTIWIRE_UPSTREAM");
-    Path path = Path.of(clone == null || clone.isEmpty() ? "/tmp/wire" : clone);
+    return pinnedClone("ANTIWIRE_UPSTREAM", "/tmp/wire", "scripts/fetch-upstream.sh");
+  }
+
+  /**
+   * A pinned clone looked up by environment variable with a default path, both fetched by the
+   * named script (the upstream and apicurio corpus clones of the parity suites). Throws when
+   * the clone is absent rather than skipping, so a clone-dependent suite cannot silently not
+   * run.
+   */
+  public static Path pinnedClone(String environmentVariable, String defaultPath,
+      String fetchScript) {
+    String clone = System.getenv(environmentVariable);
+    Path path = Path.of(clone == null || clone.isEmpty() ? defaultPath : clone);
     if (!Files.isDirectory(path)) {
       throw new IllegalStateException(
-          "pinned upstream clone not found at " + path + "; run scripts/fetch-upstream.sh");
+          "pinned clone not found at " + path + "; run " + fetchScript);
     }
     return path;
   }

@@ -376,27 +376,7 @@ class DualRunIdentityTest {
   }
 
   static Path apicurioClone() {
-    String clone = System.getenv("ANTIWIRE_APICURIO");
-    Path path = java.nio.file.Paths.get(
-        clone == null || clone.isEmpty() ? "/tmp/apicurio-registry" : clone);
-    if (!Files.isDirectory(path)) {
-      throw new IllegalStateException(
-          "pinned apicurio clone not found at " + path + "; run scripts/fetch-apicurio.sh");
-    }
-    return path;
-  }
-
-  static String sha256(byte[] bytes) {
-    try {
-      java.security.MessageDigest digest =
-          java.security.MessageDigest.getInstance("SHA-256");
-      StringBuilder sb = new StringBuilder();
-      for (byte b : digest.digest(bytes)) {
-        sb.append(String.format("%02x", b));
-      }
-      return sb.toString();
-    } catch (java.security.NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
+    return TestFiles.pinnedClone("ANTIWIRE_APICURIO", "/tmp/apicurio-registry",
+        "scripts/fetch-apicurio.sh");
   }
 }
