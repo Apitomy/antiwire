@@ -7,6 +7,12 @@
     "resolved_commit": "9f62097dfe4995b5709d001ca0187e30ca0530ef"
   },
   "clone_path_default": "/tmp/wire",
+  "apicurio_registry": {
+    "comment": "TASK-39: pinned Apicurio Registry corpus clone for the dual-run identity harness (scripts/fetch-apicurio.sh, DualRunIdentityTest). The commit is the same SHA docs/compatibility-matrix.md cites. A bare commit, verified by git rev-parse; not a tag.",
+    "repository": "https://github.com/apicurio/apicurio-registry",
+    "commit": "48e2742acc68fae456fe252cc8b08243e376ebfc",
+    "clone_path_default": "/tmp/apicurio-registry"
+  },
   "fixtures": {
     "wire_compiler_jars": "7.1.0 from Maven Central (scripts/generate-java-fixtures.sh)",
     "protobuf_java_test_oracle": "4.36.1 (wire-schema-java pom, test scope)"

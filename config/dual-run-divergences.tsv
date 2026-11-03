@@ -1,0 +1,2 @@
+half	path	op	port_shape	upstream_shape	reason	doc_ref
+upstream	squareup/proto2/kotlin/alloptions/all_options.proto	load-outcome	THREW	LOADED	port ClassCastException on bytes-typed option values: the port leaves the parsed okio.ByteString option value where its model expects com.squareup.wire.Bytes, so any file carrying a bytes-typed option value fails to link (TASK-39 finding; port fix owned by the schema team, not narrowed away)	docs/compatibility-matrix.md: task-39-dual-run-divergences
