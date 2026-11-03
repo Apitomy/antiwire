@@ -80,5 +80,23 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    <!-- TASK-39 dual-run identity harness: the relocated real Wire 7.1.0 runtime AND schema
+         (io.apitomy.antiwire.parity.wire.*) so this module can load the same corpus through
+         real Wire and the port in one JVM. Test scope only. Same in-reactor exclusion as
+         wire-runtime-java: the fixture's original pom leaks the whole upstream graph until
+         the dependency-reduced pom installs, so the com.squareup.wire group wildcard removes
+         the unrelocated jars and their transitives. -->
+    <dependency>
+      <groupId>io.apitomy</groupId>
+      <artifactId>wire-upstream-shaded</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>com.squareup.wire</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
 </project>
