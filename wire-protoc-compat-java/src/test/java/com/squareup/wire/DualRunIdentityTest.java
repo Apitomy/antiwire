@@ -45,7 +45,12 @@ class DualRunIdentityTest {
   /** Enumerates config/dual-run-corpus.tsv roots over both pinned clones, ONCE per run
    *  into the shared list both sides consume (enumerate-once invariant). Clone absent
    *  -> IllegalStateException, never a skip. */
-  static List<CorpusFile> corpus() {
+  static List<CorpusFile> corpusCache;
+
+  static synchronized List<CorpusFile> corpus() {
+    if (corpusCache != null) {
+      return corpusCache;
+    }
     List<CorpusFile> files = new ArrayList<>();
     try (Stream<String> lines = Files.lines(repoRoot().resolve("config/dual-run-corpus.tsv"),
         StandardCharsets.UTF_8)) {
@@ -72,7 +77,11 @@ class DualRunIdentityTest {
               .map(root::relativize)
               .map(p -> p.toString().replace('\\', '/'))
               .sorted()
-              .forEach(p -> files.add(new CorpusFile(fields[0], p)));
+              .forEach(p -> {
+                CorpusFile corpusFile = new CorpusFile(fields[0], p);
+                files.add(corpusFile);
+                ROOTS.put(corpusFile, root);
+              });
         } catch (IOException e) {
           throw new IllegalStateException("cannot walk corpus root " + root, e);
         }
@@ -80,6 +89,7 @@ class DualRunIdentityTest {
     } catch (IOException e) {
       throw new IllegalStateException("cannot read config/dual-run-corpus.tsv", e);
     }
+    corpusCache = files;
     return files;
   }
 
@@ -284,7 +294,7 @@ class DualRunIdentityTest {
         + " : record this row in config/dual-run-divergences.tsv (with a reason and a"
         + " docs/compatibility-matrix.md anchor):\n"
         + f.half + "\t" + f.relativePath + "\t" + op + "\t" + p.shape(op) + "\t"
-        + u.shape(op) + "\tREASON\tDOC-ANCHOR");
+        + u.shape(op) + "\tTODO-reason\tdocs/compatibility-matrix.md: TODO-anchor");
   }
 
   static String narrowLabel(CorpusFile f, String op, String side) {
@@ -305,29 +315,15 @@ class DualRunIdentityTest {
     return DualRunDivergences.repoRoot();
   }
 
+  /** Corpus file -> its root, filled once by corpus() (enumerate-once invariant). */
+  static final java.util.Map<CorpusFile, Path> ROOTS = new java.util.LinkedHashMap<>();
+
   static Path corpusRoot(CorpusFile file) {
-    String env = file.half.equals("upstream")
-        ? System.getenv("ANTIWIRE_UPSTREAM") : System.getenv("ANTIWIRE_APICURIO");
-    Path clone = file.half.equals("upstream") ? upstreamClone() : apicurioClone();
-    // Locate the corpus root row for this half (the first row whose root contains the file).
-    try (Stream<String> lines = Files.lines(repoRoot().resolve("config/dual-run-corpus.tsv"),
-        StandardCharsets.UTF_8)) {
-      List<String[]> roots = new ArrayList<>();
-      lines.filter(l -> !l.isEmpty()).map(l -> l.split("\t", -1)).forEach(roots::add);
-      for (String[] fields : roots) {
-        if (fields[0].equals("half")) continue;
-        if (!fields[0].equals(file.half)) continue;
-        Path root = clone.resolve(fields[1]);
-        if (Files.exists(root.resolve(file.relativePath))) {
-          return root;
-        }
-      }
-    } catch (IOException e) {
-      throw new IllegalStateException("cannot read config/dual-run-corpus.tsv", e);
+    Path root = ROOTS.get(file);
+    if (root == null) {
+      throw new IllegalStateException("corpus file was never enumerated: " + file);
     }
-    throw new IllegalStateException("corpus file not found under any "
-        + file.half + " root: " + file.relativePath
-        + (env == null ? "" : " (clone from " + env + ")"));
+    return root;
   }
 
   static Path upstreamClone() {

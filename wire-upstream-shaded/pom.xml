@@ -80,10 +80,12 @@
                   <pattern>okio</pattern>
                   <shadedPattern>io.apitomy.antiwire.parity.okio</shadedPattern>
                 </relocation>
-                <!-- TASK-39: wire-schema-jvm's graph brings guava, kotlinpoet and the two
-                     javapoets; each is relocated into the fixture namespace so nothing
-                     unrelocated but kotlin-stdlib reaches a consumer classpath and no
-                     relocation can collide with the port's own dependency set. -->
+                <!-- TASK-39: wire-schema-jvm's graph brings guava, kotlinpoet and the
+                     palantir javapoet; each is relocated into the fixture namespace so
+                     nothing unrelocated but kotlin-stdlib reaches a consumer classpath and
+                     no relocation can collide with the port's own dependency set. (The
+                     port's own com.squareup:javapoet is NOT in this graph: the shaded jar
+                     carries zero com/squareup/javapoet entries.) -->
                 <relocation>
                   <pattern>com.google.common</pattern>
                   <shadedPattern>io.apitomy.antiwire.parity.guava</shadedPattern>
