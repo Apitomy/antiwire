@@ -107,6 +107,20 @@ fi
 cat "$LOG"
 
 echo
+echo "--- prerequisite: pinned apicurio corpus sources (scripts/fetch-apicurio.sh) ---"
+if ! bash "$ROOT/scripts/fetch-apicurio.sh" >"$LOG" 2>&1; then
+  cat "$LOG"
+  {
+    echo "FATAL: prerequisite failed: the pinned apicurio corpus sources could not be obtained and validated."
+    echo "       The dual-run identity harness reads the apicurio half of its corpus from the clone inside"
+    echo "       mvn verify, so no build was started. Fix the fetch (network, pin, clone path;"
+    echo "       docs/parity-runner.md) and re-run. ANTIWIRE_APICURIO overrides the clone location."
+  } >&2
+  exit "$EXIT_FAIL"
+fi
+cat "$LOG"
+
+echo
 echo "--- suite: build (mvn verify; includes the dependency-policy enforcer rules) ---"
 build_ok=1
 if mvn -B -ntp -f "$ROOT/pom.xml" verify >"$LOG" 2>&1; then
@@ -246,11 +260,13 @@ if [ "$build_ok" -eq 1 ]; then
   run_suite bytecode-java11 scripts/check-java11-bytecode.sh
   run_suite java11-consumer scripts/consumer-check-java11.sh
   run_suite surface-check scripts/surface-check.sh
+  run_suite dual-run-identity scripts/dual-run-identity.sh
 else
   skip_suite duplicate-class-check scripts/check-classpath.sh
   skip_suite bytecode-java11 scripts/check-java11-bytecode.sh
   skip_suite java11-consumer scripts/consumer-check-java11.sh
   skip_suite surface-check scripts/surface-check.sh
+  skip_suite dual-run-identity scripts/dual-run-identity.sh
 fi
 
 echo

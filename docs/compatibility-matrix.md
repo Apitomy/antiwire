@@ -136,3 +136,63 @@ inside `@Throws` paths. The consumer snippets `EncodeWithoutTryCatch`, `PackUnpa
 and `SchemaLoadWithoutTryCatch` (scripts/surface-consumer) compile against both the real upstream
 jars and the port.
 
+
+## TASK-39 dual-run divergences {#task-39-dual-run-divergences}
+
+The dual-run identity harness (TASK-39, suite `dual-run-identity`, ledger
+`config/dual-run-divergences.tsv`) loads every `.proto` of the pinned corpora (square/wire
+7.1.0 at commit `9f62097dfe4995b5709d001ca0187e30ca0530ef`, Apicurio Registry at commit
+`23a09ab4e128e8a308efbcc333c5318734126b55`, an origin/main commit so a cache-cold clone
+from GitHub reaches it) through both real Wire (relocated fixture) and
+the port in one JVM, and asserts identical load outcomes, failure chains, descriptor bytes
+(`SchemaEncoder.encode`, raw, no stripper) and canonical text (`ProtoFile.toSchema()`).
+Each file is staged the way a consumer like Apicurio Registry stages it
+(`ProtobufSchemaLoader` in the registry's protobuf-schema-utilities): a per-file temp root
+with the file at a path mirroring its declared package plus its transitive import closure,
+each dependency at exactly its import path, content resolved from the corpus root and
+Wire's vendored well-known protos; imports that resolve nowhere stay unstaged and fail to
+load identically on both sides (outcome-parity material).
+
+Coverage of the corpus run of 2026-11-03 at those pins, after staging landed (213 files,
+171 upstream plus 42 apicurio): 172 files both-LOADED (141 upstream, 31 apicurio) and 40
+both-THREW (29 upstream, 11 apicurio); one file divergent. Per operation, `load-outcome`
+ran on all 213 files, `failure-chain` on the 40 both-THREW files, and `descriptor-bytes`,
+`canonical-text` and the DEC-15 `range-probe` on the 172 both-LOADED files. The both-THREW
+files are outcome-parity throws, identically chained on both sides: 28 upstream fixtures
+whose bare sibling imports (`bar.proto`, `foreign.proto`, ...) name files that sit beside
+them in the same directory and so resolve only against a deeper proto path than the corpus
+root, the vendored `descriptor.proto` itself (Wire's linker loads
+`google/protobuf/descriptor.proto` a second time when the source-path file is that same
+file under an absolute path), 9 apicurio files importing protos that resolve nowhere at
+these pins (`google/type/money.proto`, `google/protobuf/api.proto`, cross-directory
+sample/common imports), and 2 apicurio fixtures with deliberate syntax errors. The suite
+floors the both-LOADED counts per half at exactly these measurements (141 and 31), so
+green can never mean empty coverage.
+
+Divergences recorded by that corpus run (one divergent):
+
+- **Bytes-typed option values throw at descriptor encoding on the port.** On any file
+  carrying a bytes-typed option value (corpus witness:
+  `squareup/proto2/kotlin/alloptions/all_options.proto`, `option (bytes_value) = ...` on
+  `google.protobuf.MethodOptions` extensions), the port loads and links the file and then
+  throws `ClassCastException: class okio.ByteString cannot be cast to class
+  com.squareup.wire.Bytes` while `SchemaEncoder.encode` serializes the option value into
+  the descriptor; real Wire 7.1.0 encodes the same file. The parsed option value stays an
+  okio ByteString where the port's model expects its own `com.squareup.wire.Bytes`. Every
+  other byte- and string-typed construct in the corpus encodes and byte-compares equal.
+  The harness attributes any throw inside the per-file pipeline to `load-outcome`, so the
+  divergence is a ledger row (`load-outcome`, port=THREW, upstream=LOADED), never a
+  silent skip. Fix owner: the schema port team.
+
+Built-in narrowed probes that are NOT ledger rows:
+
+- **DEC-15 range element types** are invisible to text and descriptor comparison, so the
+  harness probes them as data: the port stores `int[]` pairs where real Wire stores
+  `kotlin.ranges.IntRange`, bounds identical, compared element-wise because one extensions
+  declaration can carry several values. If upstream ever returns `int[]` the probe
+  fails loudly.
+- **DEC-16 wrapper absorption**: the port surfaces checked IOExceptions as
+  `UncheckedIOException` where upstream propagates the raw Kotlin IOException; the harness
+  compares root causes (simple class name plus first message line) on both sides, so the
+  wrapper never masquerades as a harness discrepancy. A divergence between root-cause
+  chains would be a ledger row like any other.

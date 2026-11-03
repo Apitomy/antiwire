@@ -25,12 +25,16 @@
   </description>
 
   <dependencies>
-    <!-- Parity oracle fixture: upstream wire-runtime-jvm relocated, test scope only.
-         The exclusion is required in-reactor: the fixture's original pom still declares
-         wire-runtime-jvm compile (the dependency-reduced pom applies only once installed),
-         which would leak the unrelocated upstream jar onto this test classpath next to the
-         port's own classes, violating DEC-2's duplicate-class rule. kotlin-stdlib still
-         arrives from the parent's test-scope declaration. -->
+    <!-- Parity oracle fixture: upstream wire-runtime-jvm (and, since TASK-39,
+         wire-schema-jvm) relocated, test scope only.
+         The exclusion is required in-reactor: the fixture's original pom still declares the
+         upstream jars compile (the dependency-reduced pom applies only once installed),
+         which would leak the unrelocated upstream jars onto this test classpath next to the
+         port's own classes, violating DEC-2's duplicate-class rule. Since the fixture also
+         carries wire-schema-jvm, the single-artifact exclusion is no longer sufficient and
+         the group wildcard is the smallest correct form (an exclusion removes the node and
+         its whole transitive subtree, taking okio-jvm, guava, kotlinpoet and javapoet with
+         it). kotlin-stdlib still arrives from the parent's test-scope declaration. -->
     <dependency>
       <groupId>io.apitomy</groupId>
       <artifactId>wire-upstream-shaded</artifactId>
@@ -39,7 +43,7 @@
       <exclusions>
         <exclusion>
           <groupId>com.squareup.wire</groupId>
-          <artifactId>wire-runtime-jvm</artifactId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

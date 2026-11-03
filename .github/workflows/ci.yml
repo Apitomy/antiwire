@@ -46,14 +46,33 @@ jobs:
           key: maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: maven-
 
+      # TASK-14/TASK-39: read each corpus pin's commit into step outputs so each clone
+      # cache keys on its OWN pin (not the whole pins file): moving one pin must not
+      # re-clone the other repo. The upstream key is the resolved commit; if only the
+      # annotated tag object moves, the content is identical and the cache is still
+      # correct (fetch-upstream.sh verifies the full tag-object-commit identity anyway).
+      - name: read the pinned corpus commits
+        id: pins
+        run: |
+          python3 -c 'import json; p=json.load(open("config/parity-pins.json")); print("upstream="+p["upstream"]["resolved_commit"]); print("apicurio="+p["apicurio_registry"]["commit"])' >> "$GITHUB_OUTPUT"
+
       # TASK-14: the parity-coverage suite needs the pinned upstream clone; cache it per
-      # tag so reconciliation runs against the exact sources the pins name.
+      # pinned commit so reconciliation runs against the exact sources the pins name.
       - uses: actions/cache@v4
         with:
           path: ~/antiwire-upstream
-          key: upstream-${{ hashFiles('config/parity-pins.json') }}
+          key: upstream-${{ steps.pins.outputs.upstream }}
       - name: fetch the pinned upstream clone
         run: scripts/fetch-upstream.sh "$HOME/antiwire-upstream"
+
+      # TASK-39: the dual-run identity harness reads the apicurio half of its corpus from
+      # the pinned Apicurio Registry clone, cached per pin exactly like the upstream one.
+      - uses: actions/cache@v4
+        with:
+          path: ~/antiwire-apicurio
+          key: apicurio-${{ steps.pins.outputs.apicurio }}
+      - name: fetch the pinned apicurio clone
+        run: scripts/fetch-apicurio.sh "$HOME/antiwire-apicurio"
 
       # Offline script-level regression checks (stubbed mvn, synthetic upstream): the
       # verify.sh clone prerequisite, the parity-gate negative probes and the release
@@ -66,7 +85,7 @@ jobs:
           scripts/test-release-gates.sh
 
       - name: run the verification entry point
-        run: ANTIWIRE_UPSTREAM="$HOME/antiwire-upstream" scripts/verify.sh
+        run: ANTIWIRE_UPSTREAM="$HOME/antiwire-upstream" ANTIWIRE_APICURIO="$HOME/antiwire-apicurio" scripts/verify.sh
 
   # DEC-18: after a green build of main, publish the -SNAPSHOT to the Central Portal snapshot
   # repository. Without the two secrets below it only prints a notice and succeeds.

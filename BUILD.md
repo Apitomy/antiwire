@@ -39,6 +39,11 @@ any reactor-scoped run.
    the run fails fast with an explicit prerequisite message and no build is started.
    `scripts/test-bootstrap.sh` is the offline regression check for these states (stubbed
    mvn, synthetic upstream repository);
+1b. bootstraps the pinned Apicurio Registry corpus clone (TASK-39): `scripts/fetch-apicurio.sh`
+   runs right after the upstream fetch with the same fail-closed shape; the dual-run identity
+   harness reads the apicurio half of its corpus from this clone inside `mvn verify`. The
+   clone path defaults to `/tmp/apicurio-registry` and is overridden with `ANTIWIRE_APICURIO`
+   (CI passes its cached `~/antiwire-apicurio` this way);
 2. runs `mvn verify` (build, enforcer dependency policy, module smoke tests, classpath exports);
 3. runs `scripts/check-classpath.sh`: per module, reports where classes under the retained
    prefixes load from and fails if one class name resolves from two artifacts. The retained
@@ -49,8 +54,13 @@ any reactor-scoped run.
 5. runs `scripts/consumer-check-java11.sh`: compiles and runs the consumer (ProtoWriter and loading-layer smokes)
    on an actual Java 11 JVM against the module jars;
 6. runs `scripts/surface-check.sh` (suite `surface-check`, TASK-34): the source-compatibility
-   surface check described below. The full list of suites, 13 ACTIVE at the time of writing, is
-   the registry in `config/verify-suites.json`; this numbered list is a summary of the steps.
+   surface check described below. The dual-run identity suite (TASK-39, ACTIVE) reconciles
+   the DualRunIdentityTest surefire report of step 2: per-half invocation counts against the
+   corpus enumeration, corpus floors (150 upstream, 40 apicurio files), both-LOADED coverage
+   floors (141 upstream, 31 apicurio files), Failures/Errors/Skipped 0, and every
+   divergence-ledger row's doc anchor present. The full list of suites, 14 ACTIVE at the
+   time of writing, is the registry in `config/verify-suites.json`; this numbered list is a
+   summary of the steps.
 
 ### Source-compatibility surface check
 

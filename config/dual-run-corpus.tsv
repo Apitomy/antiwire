@@ -1,0 +1,10 @@
+half	root
+upstream	wire-protoc-compatibility-tests/src/main/proto
+upstream	wire-tests/fixtures/proto
+upstream	wire-tests/fixtures/shared/proto
+upstream	wire-schema/src/jvmMain/resources/google/protobuf
+upstream	wire-golden-files/src/main/proto
+apicurio	utils/protobuf-schema-utilities/src/main/proto
+apicurio	utils/protobuf-schema-utilities/src/test/proto
+apicurio	utils/protobuf-schema-utilities/src/test/resources/parseWithDeps
+apicurio	app/src/test
