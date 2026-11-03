@@ -330,6 +330,13 @@ the Central Portal by its namespace administrator, and a Central Portal user tok
 stored as the `CENTRAL_TOKEN_USERNAME` and `CENTRAL_TOKEN_PASSWORD` repository secrets. Until
 both exist, the CI job only prints a notice and nothing is published.
 
+**2026-11-03, maintainer (after jsenko's point 2 on issue #9):** the snapshot lane stays
+dormant. No namespace enablement will be requested and no token secrets will be stored: a
+`0.x` release serves consumers better (permanent, resolvable from Central without declaring
+an extra repository, no 90-day expiry), and Registry can take a `0.x` release behind its
+experimental gate. The profile and CI job stay in the repository and remain inert without
+the secrets. The first published artifact will be `0.1.0` after TASK-21's gates.
+
 ### DEC-19 groupId becomes io.apitomy and the repository moves to the Apitomy organization (decided 2026-11-03)
 
 Supersedes DEC-8's `io.apicurio`. The maintainer decided, following jsenko's 2026-11-03
