@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test;
  * with {@code NoSuchMethodError}. Found by the Retrofit converter-wire drop-in test.
  */
 public class ProtoAdapterConstructorParityTest {
-  private static final String UPSTREAM_PACKAGE = "io.apicurio.antiwire.parity.wire.";
+  private static final String UPSTREAM_PACKAGE = "io.apitomy.antiwire.parity.wire.";
   private static final String PORT_PACKAGE = "com.squareup.wire.";
 
   @Test
@@ -52,7 +52,7 @@ public class ProtoAdapterConstructorParityTest {
     List<String> missing = new ArrayList<>();
     int checked = 0;
     for (Constructor<?> c :
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.class.getDeclaredConstructors()) {
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.class.getDeclaredConstructors()) {
       boolean accessible =
           Modifier.isPublic(c.getModifiers()) || Modifier.isProtected(c.getModifiers());
       if (!accessible || c.isSynthetic() || usesKotlinType(c)) continue;
@@ -69,8 +69,8 @@ public class ProtoAdapterConstructorParityTest {
   @Test
   public void twoArgumentConstructorMatchesUpstreamDefaults() {
     ProtoAdapter<String> ours = new PortAdapter(FieldEncoding.LENGTH_DELIMITED, String.class);
-    io.apicurio.antiwire.parity.wire.ProtoAdapter<String> theirs = new UpstreamAdapter(
-        io.apicurio.antiwire.parity.wire.FieldEncoding.LENGTH_DELIMITED, String.class);
+    io.apitomy.antiwire.parity.wire.ProtoAdapter<String> theirs = new UpstreamAdapter(
+        io.apitomy.antiwire.parity.wire.FieldEncoding.LENGTH_DELIMITED, String.class);
 
     assertSameDefaults(ours, theirs);
     assertNull(ours.getTypeUrl());
@@ -82,8 +82,8 @@ public class ProtoAdapterConstructorParityTest {
     String typeUrl = "type.googleapis.com/example.Phone";
     ProtoAdapter<String> ours =
         new PortAdapter(FieldEncoding.LENGTH_DELIMITED, String.class, typeUrl);
-    io.apicurio.antiwire.parity.wire.ProtoAdapter<String> theirs = new UpstreamAdapter(
-        io.apicurio.antiwire.parity.wire.FieldEncoding.LENGTH_DELIMITED, String.class, typeUrl);
+    io.apitomy.antiwire.parity.wire.ProtoAdapter<String> theirs = new UpstreamAdapter(
+        io.apitomy.antiwire.parity.wire.FieldEncoding.LENGTH_DELIMITED, String.class, typeUrl);
 
     assertSameDefaults(ours, theirs);
     assertEquals(typeUrl, ours.getTypeUrl());
@@ -98,7 +98,7 @@ public class ProtoAdapterConstructorParityTest {
   }
 
   private static void assertSameDefaults(
-      ProtoAdapter<?> ours, io.apicurio.antiwire.parity.wire.ProtoAdapter<?> theirs) {
+      ProtoAdapter<?> ours, io.apitomy.antiwire.parity.wire.ProtoAdapter<?> theirs) {
     assertEquals(theirs.getTypeUrl(), ours.getTypeUrl(), "typeUrl");
     assertEquals(theirs.getSyntax().name(), ours.getSyntax().name(), "syntax");
     assertEquals(theirs.getIdentity(), ours.getIdentity(), "identity");
@@ -154,12 +154,12 @@ public class ProtoAdapterConstructorParityTest {
   }
 
   private static final class UpstreamAdapter
-      extends io.apicurio.antiwire.parity.wire.ProtoAdapter<String> {
-    UpstreamAdapter(io.apicurio.antiwire.parity.wire.FieldEncoding fieldEncoding, Class<?> type) {
+      extends io.apitomy.antiwire.parity.wire.ProtoAdapter<String> {
+    UpstreamAdapter(io.apitomy.antiwire.parity.wire.FieldEncoding fieldEncoding, Class<?> type) {
       super(fieldEncoding, type);
     }
 
-    UpstreamAdapter(io.apicurio.antiwire.parity.wire.FieldEncoding fieldEncoding, Class<?> type,
+    UpstreamAdapter(io.apitomy.antiwire.parity.wire.FieldEncoding fieldEncoding, Class<?> type,
         String typeUrl) {
       super(fieldEncoding, type, typeUrl);
     }
@@ -172,11 +172,11 @@ public class ProtoAdapterConstructorParityTest {
       return 0;
     }
 
-    @Override public void encode(io.apicurio.antiwire.parity.wire.ProtoWriter writer,
+    @Override public void encode(io.apitomy.antiwire.parity.wire.ProtoWriter writer,
         String value) {
     }
 
-    @Override public String decode(io.apicurio.antiwire.parity.wire.ProtoReader reader) {
+    @Override public String decode(io.apitomy.antiwire.parity.wire.ProtoReader reader) {
       return "";
     }
   }

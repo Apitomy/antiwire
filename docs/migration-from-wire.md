@@ -1,9 +1,9 @@
 # Migrating from Square Wire 7.1.0 to antiwire
 
 For a Java project that depends on `com.squareup.wire:wire-schema` (and `wire-runtime`) and wants
-`io.apicurio:wire-schema-java` (and `wire-runtime-java`) instead.
+`io.apitomy:wire-schema-java` (and `wire-runtime-java`) instead.
 
-Status: no release is published. `io.apicurio:wire-schema-java:0.1.0-SNAPSHOT` exists after you
+Status: no release is published. `io.apitomy:wire-schema-java:0.1.0-SNAPSHOT` exists after you
 build and install antiwire yourself, or from the Central Portal snapshot repository once
 SNAPSHOT publishing is enabled (section 1, DEC-18); the version is a moving snapshot.
 
@@ -41,7 +41,7 @@ branch `antiwire-integration` of `paoloantinori/apicurio-registry` (log in its
 <dependency><groupId>com.squareup.wire</groupId><artifactId>wire-schema</artifactId>
   <version>7.1.0</version></dependency>
 <!-- after -->
-<dependency><groupId>io.apicurio</groupId><artifactId>wire-schema-java</artifactId>
+<dependency><groupId>io.apitomy</groupId><artifactId>wire-schema-java</artifactId>
   <version>0.1.0-SNAPSHOT</version></dependency>
 ```
 
@@ -57,7 +57,7 @@ install first, or resolve the artifacts from a repository you publish them to.
 Once SNAPSHOT publishing is enabled (DEC-18), a build can resolve the current `0.1.0-SNAPSHOT`
 from the snapshot repository instead. The repository cannot be browsed; this command succeeds
 once a snapshot exists:
-`curl -fsS https://central.sonatype.com/repository/maven-snapshots/io/apicurio/wire-schema-java/maven-metadata.xml`.
+`curl -fsS https://central.sonatype.com/repository/maven-snapshots/io/apitomy/wire-schema-java/maven-metadata.xml`.
 
 ```xml
 <repositories>
@@ -189,7 +189,7 @@ are public (Apicurio relied on them).
 ## How to check your own migration
 
 1. Build and install antiwire, point your build at it, remove the Wire dependencies.
-2. `mvn dependency:tree` must show only `io.apicurio:wire-schema-java` and
+2. `mvn dependency:tree` must show only `io.apitomy:wire-schema-java` and
    `wire-runtime-java` for `com.squareup.wire.*`, and no `org.jetbrains.kotlin` or
    `com.squareup.okio`.
 3. Run your existing tests: changes should be limited to the items above (invocations,

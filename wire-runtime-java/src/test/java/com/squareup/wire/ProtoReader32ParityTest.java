@@ -47,15 +47,15 @@ public class ProtoReader32ParityTest {
   }
 
   private static List<String> readAllUpstream32(byte[] bytes) throws IOException {
-    byte[] source = io.apicurio.antiwire.parity.okio.ByteString.of(bytes).toByteArray();
-    io.apicurio.antiwire.parity.wire.ProtoReader32 reader =
-        new io.apicurio.antiwire.parity.wire.ByteArrayProtoReader32(
+    byte[] source = io.apitomy.antiwire.parity.okio.ByteString.of(bytes).toByteArray();
+    io.apitomy.antiwire.parity.wire.ProtoReader32 reader =
+        new io.apitomy.antiwire.parity.wire.ByteArrayProtoReader32(
             source, 0, source.length);
     List<String> transcript = new ArrayList<>();
     int token = reader.beginMessage();
     int tag;
     while ((tag = reader.nextTag()) != -1) {
-      io.apicurio.antiwire.parity.wire.FieldEncoding encoding =
+      io.apitomy.antiwire.parity.wire.FieldEncoding encoding =
           reader.peekFieldEncoding();
       switch (encoding) {
         case VARINT:

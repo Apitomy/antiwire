@@ -34,9 +34,9 @@ JSON adapters (gson-support, moshi-adapter), the gRPC client, the gRPC reflectio
 
 Apicurio Registry is the initial release acceptance target. Apache Kafka is a later adoption target and does not gate the first release. The concrete Kafka use case is a product decision to be named when that phase starts. Rationale: research report F5, F6.
 
-### DEC-8 Publication and organization boundaries
+### DEC-8 Publication and organization boundaries (superseded by DEC-19)
 
-The Maven groupId is `io.apicurio`. The namespace use is authorized by the maintainer (directive 2026-10-02, reconfirmed 2026-10-06); authorization to publish artifacts is a separate gate that stays closed until TASK-21's release gates pass and the maintainer approves the release explicitly (TASK-21 AC#1). Defining the plan can precede implementation, but hosting or transferring the repository under an organization requires agreed scope, namespace permission, and maintenance arrangements. Rationale: consumer-slice governance verification.
+The Maven groupId was `io.apicurio` (now `io.apitomy` per DEC-19, 2026-11-03). The namespace use is authorized by the maintainer (directive 2026-10-02, reconfirmed 2026-10-06); authorization to publish artifacts is a separate gate that stays closed until TASK-21's release gates pass and the maintainer approves the release explicitly (TASK-21 AC#1). Defining the plan can precede implementation, but hosting or transferring the repository under an organization requires agreed scope, namespace permission, and maintenance arrangements. Rationale: consumer-slice governance verification.
 
 ### DEC-9 Performance: measure and approve before release
 
@@ -58,7 +58,7 @@ The port is Apache 2.0 overall and preserves upstream attribution verbatim, per 
 
 The release task (TASK-21) depends on the footprint report (TASK-19), the performance report (TASK-20), and the upstream sync demonstration (TASK-23). The transitive closure of those three covers the execution tasks TASK-1 through TASK-20 and TASK-23; the Kafka path (TASK-22) is outside the release gate by DEC-7. M5 therefore carries explicit release gates: measured footprint accepted, measured performance accepted or regressions explicitly accepted, sync procedure demonstrated, full required CI suite green with no pending required case, a release-time recheck that published dependency metadata contains no Kotlin, the Java 11 consumer smoke of DEC-3 run on the final candidate, and freshness checks that every measurement and acceptance record identifies the final candidate's artifact checksums, build revision, and resolved dependency set, with records invalidated by later relevant changes refused.
 
-**DEC-8 resolved 2026-10-02 (maintainer directive):** the provisional `io.github.paoloantinori` coordinates are replaced by `io.apicurio` everywhere (group IDs, the wire-upstream-shaded parity relocation package `io.apicurio.antiwire.parity`, BUILD/docs references). The maintainer's message authorized the namespace use only; publishing artifacts stays a separate gate (TASK-21 AC#1). Measurement docs (footprint, performance) carry dated coordinate-update notes; class and resource bytes are unchanged by a coordinate switch, but whole-jar SHA-256 values change with the embedded META-INF/maven groupId path, so whole-jar checksum records were re-issued (footprint.md section 10, performance.md coordinate note).
+**DEC-8 resolved 2026-10-02 (maintainer directive):** the provisional `io.github.paoloantinori` coordinates are replaced by `io.apicurio` everywhere (group IDs, the wire-upstream-shaded parity relocation package `io.apicurio.antiwire.parity`, BUILD/docs references). The maintainer's message authorized the namespace use only; publishing artifacts stays a separate gate (TASK-21 AC#1). Measurement docs (footprint, performance) carry dated coordinate-update notes; class and resource bytes are unchanged by a coordinate switch, but whole-jar SHA-256 values change with the embedded META-INF/maven groupId path, so whole-jar checksum records were re-issued (footprint.md section 10, performance.md coordinate note). **Superseded by DEC-19 (2026-11-03):** the groupId is now `io.apitomy` and the repository moved to the Apitomy organization; every publish gate set here carries over unchanged. Unlike the DEC-8 switch, the checksum records were not re-issued for DEC-19: nothing was published under either namespace, and the already-required remeasurement (TASK-21) re-issues them.
 
 ## Open technical decisions assigned to M0 (not settled here)
 
@@ -158,9 +158,10 @@ record: its own decision list (D1 through D8) is subsumed by DEC-1 through DEC-1
 and by this section, except D5a, which the maintainer confirmed on 2026-10-06 and which is
 recorded below as DEC-14; its zero-dependency enforcer and its separate CI dependency-list
 assertion are dropped in favor of the reviewed dependency policy and the scripts/verify.sh
-suite registry. Its `io.apicurio` coordinates are the final ones (DEC-8, resolved): the
-interim `io.github.paoloantinori` namespace was a placeholder and is gone everywhere,
-including the parity relocation packages.
+suite registry. Its Maven coordinates are `io.apitomy` (DEC-19; `io.apicurio` between
+2026-10-02 and 2026-11-03 by DEC-8, authorized as final at its time): the interim
+`io.github.paoloantinori` placeholder is gone everywhere including the parity relocation
+packages, and `io.apicurio` remains only in dated records and in Apicurio's own artifacts.
 
 ### DEC-14 Consumer-facing API is JDK-typed; okio stays an internal engine (confirmed 2026-10-06)
 
@@ -324,8 +325,26 @@ nothing, so only that last step can leave a mix of old and new modules. The `pub
 `main` and weekly; GitHub disables the weekly schedule after 60 days without repository
 activity, so a dormant repository can let the snapshot expire.
 
-Not done by the repository: the io.apicurio namespace's SNAPSHOT publishing must be enabled in
+Not done by the repository: the io.apitomy namespace's (DEC-19) SNAPSHOT publishing must be enabled in
 the Central Portal by its namespace administrator, and a Central Portal user token must be
 stored as the `CENTRAL_TOKEN_USERNAME` and `CENTRAL_TOKEN_PASSWORD` repository secrets. Until
 both exist, the CI job only prints a notice and nothing is published.
 
+### DEC-19 groupId becomes io.apitomy and the repository moves to the Apitomy organization (decided 2026-11-03)
+
+Supersedes DEC-8's `io.apicurio`. The maintainer decided, following jsenko's 2026-11-03
+comment on issue #9, that antiwire moves to the Apitomy organization and publishes under
+`io.apitomy`. Apicurio now follows CNCF governance, which constrains publishing; Apitomy does
+not, and the `io.apitomy` namespace already exists on Maven Central (apitomy-data-models and
+related artifacts). Nothing had been published under `io.apicurio` (no release, no snapshot),
+so the rename has no published-artifact cost.
+
+Changed on 2026-11-03: the groupId of the parent and every module, the wire-upstream-shaded
+parity relocation packages (`io.apitomy.antiwire.parity.*`), and the consumer-facing
+references (README, BUILD.md, the migration guide, the Kafka proposal). Java class packages
+stay `com.squareup.wire.*`, as they have since DEC-8: that decision changed Maven coordinates
+only, and so does this one. Measurement docs (footprint, performance) keep their recorded
+`io.apicurio` paths with dated notes; whole-jar checksums embed the old META-INF/maven path
+and are re-issued by the already-required remeasurement (TASK-21). DEC-18 snapshot
+publishing, when enabled, happens under `io.apitomy`: enabling snapshots on that namespace
+and storing the `CENTRAL_TOKEN_*` secrets are done by the Apitomy namespace administrators.

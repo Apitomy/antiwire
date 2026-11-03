@@ -58,10 +58,10 @@ public class WireEmptyAdapterTest {
   @Test public void wireEmptyMatchesTheUpstreamUnitOracle() throws IOException {
     // A present Empty field is its tag and a zero length, on both sides (ProtoAdapterParityTest
     // style): upstream writes it for kotlin.Unit, the port for the UnitValue singleton.
-    io.apicurio.antiwire.parity.okio.Buffer upstreamBuffer =
-        new io.apicurio.antiwire.parity.okio.Buffer();
-    io.apicurio.antiwire.parity.wire.ProtoAdapter.EMPTY.encodeWithTag(
-        new io.apicurio.antiwire.parity.wire.ProtoWriter(upstreamBuffer), 3, kotlin.Unit.INSTANCE);
+    io.apitomy.antiwire.parity.okio.Buffer upstreamBuffer =
+        new io.apitomy.antiwire.parity.okio.Buffer();
+    io.apitomy.antiwire.parity.wire.ProtoAdapter.EMPTY.encodeWithTag(
+        new io.apitomy.antiwire.parity.wire.ProtoWriter(upstreamBuffer), 3, kotlin.Unit.INSTANCE);
     byte[] upstreamBytes = upstreamBuffer.readByteArray();
 
     okio.Buffer ourBuffer = new okio.Buffer();

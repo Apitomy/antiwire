@@ -61,9 +61,9 @@ An automated check reconciles the name of every upstream test case against the p
 
 | Item | Status | Blocking on |
 |---|---|---|
-| [0.1.0 release](https://github.com/Apicurio/antiwire/issues/3) | Measurements accepted on their recorded candidates (footprint `c713e9a`, performance `82c3624`); renewal on the final candidate and the release-builder guard update still to do | Maintainer's final go, final-candidate remeasurement (TASK-21, TASK-21.1), and who uploads the artifacts. Deferred as not urgent |
-| [Kafka adoption](https://github.com/Apicurio/antiwire/issues) (TASK-22) | Proposal C1 written up, waiting | Deferred by the maintainer |
-| [`Bytes` name-collision question](https://github.com/Apicurio/antiwire/issues/2) | Original claim refuted for the tested top-level shapes (audit 2026-10-06); TASK-27 pins the verified behavior and dispositions the remaining shapes | Low priority; the remaining shapes are unverified, not confirmed defects |
+| [0.1.0 release](https://github.com/Apitomy/antiwire/issues/3) | Measurements accepted on their recorded candidates (footprint `c713e9a`, performance `82c3624`); renewal on the final candidate and the release-builder guard update still to do | Maintainer's final go, final-candidate remeasurement (TASK-21, TASK-21.1), and who uploads the artifacts. Deferred as not urgent |
+| [Kafka adoption](https://github.com/Apitomy/antiwire/issues) (TASK-22) | Proposal C1 written up, waiting | Deferred by the maintainer |
+| [`Bytes` name-collision question](https://github.com/Apitomy/antiwire/issues/2) | Original claim refuted for the tested top-level shapes (audit 2026-10-06); TASK-27 pins the verified behavior and dispositions the remaining shapes | Low priority; the remaining shapes are unverified, not confirmed defects |
 | Apicurio PR | Branch ready locally | Maintainer's call on whether and when |
 
 In short: the measured work is done and recorded against its candidates, and the verification battery is green at `295ef5f`. What remains: remeasurement on the final candidate, the 2026-10-06 audit follow-ups, and the maintainer decisions (publish, Kafka, PR).

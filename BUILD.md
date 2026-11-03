@@ -16,7 +16,7 @@ in `docs/`, the decision record in [docs/decisions.md](docs/decisions.md).
 
 `mvn test -pl <module> -am` fails in `wire-runtime-java` with `TestEngine with ID
 'junit-vintage' failed to discover tests` (root cause: `NoClassDefFoundError` on a relocated
-`io.apicurio.antiwire.parity.*` class). The shaded fixture's relocation output is
+`io.apitomy.antiwire.parity.*` class). The shaded fixture's relocation output is
 produced by the shade plugin in the `package` phase, so a `test`-scoped reactor run resolves
 the `wire-upstream-shaded` dependency to its empty `target/classes` instead of a jar, and the
 JUnit 4 parity tests cannot link. This predates the generator work (surefire dumps from
@@ -123,8 +123,8 @@ upload or download.
 
 ## Coordinates
 
-The groupId is `io.apicurio`, resolved by maintainer directive on 2026-10-02 and reconfirmed
-on 2026-10-06 (DEC-8). Authorization to publish a release is a separate, still-closed gate:
+The groupId is `io.apitomy` (DEC-19, 2026-11-03; `io.apicurio` before it, resolved by
+maintainer directive on 2026-10-02 and reconfirmed 2026-10-06, DEC-8). Authorization to publish a release is a separate, still-closed gate:
 deployment is disabled (`maven.deploy.skip` is true in the parent pom) and a release must not
 be published before TASK-21's release gates pass and the maintainer approves.
 

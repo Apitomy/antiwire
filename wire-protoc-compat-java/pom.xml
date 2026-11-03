@@ -11,7 +11,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>io.apicurio</groupId>
+    <groupId>io.apitomy</groupId>
     <artifactId>antiwire-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
   </parent>
@@ -30,7 +30,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>io.apicurio</groupId>
+      <groupId>io.apitomy</groupId>
       <artifactId>wire-runtime-java</artifactId>
     </dependency>
     <!-- Reference implementation runtime: the protoc-generated models and the interop
@@ -56,7 +56,7 @@
     <!-- SchemaEncoderInteropTest loads the pinned module protos through the port's own
          schema machinery. Test scope only. -->
     <dependency>
-      <groupId>io.apicurio</groupId>
+      <groupId>io.apitomy</groupId>
       <artifactId>wire-schema-java</artifactId>
       <scope>test</scope>
     </dependency>
@@ -66,7 +66,7 @@
          the protoc oracle fixture. Test scope only: the oracle module never ships, and no
          production consumer pulls the generator (OPEN-2 fixed boundary). -->
     <dependency>
-      <groupId>io.apicurio</groupId>
+      <groupId>io.apitomy</groupId>
       <artifactId>wire-java-generator</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -74,7 +74,7 @@
     <!-- Shared test fixtures (com.squareup.wire.testing.TestFiles, including the pinned
          upstream-clone lookup the interop test uses). Test scope only. -->
     <dependency>
-      <groupId>io.apicurio</groupId>
+      <groupId>io.apitomy</groupId>
       <artifactId>wire-schema-java</artifactId>
       <version>${project.version}</version>
       <classifier>tests</classifier>
