@@ -46,12 +46,23 @@ jobs:
           key: maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: maven-
 
+      # TASK-14/TASK-39: read each corpus pin's commit into step outputs so each clone
+      # cache keys on its OWN pin (not the whole pins file): moving one pin must not
+      # re-clone the other repo. The upstream key is the resolved commit; if only the
+      # annotated tag object moves, the content is identical and the cache is still
+      # correct (fetch-upstream.sh verifies the full tag-object-commit identity anyway).
+      - name: read the pinned corpus commits
+        id: pins
+        run: |
+          echo "upstream=$(python3 -c 'import json; print(json.load(open("config/parity-pins.json"))["upstream"]["resolved_commit"])')" >> "$GITHUB_OUTPUT"
+          echo "apicurio=$(python3 -c 'import json; print(json.load(open("config/parity-pins.json"))["apicurio_registry"]["commit"])')" >> "$GITHUB_OUTPUT"
+
       # TASK-14: the parity-coverage suite needs the pinned upstream clone; cache it per
-      # tag so reconciliation runs against the exact sources the pins name.
+      # pinned commit so reconciliation runs against the exact sources the pins name.
       - uses: actions/cache@v4
         with:
           path: ~/antiwire-upstream
-          key: upstream-${{ hashFiles('config/parity-pins.json') }}
+          key: upstream-${{ steps.pins.outputs.upstream }}
       - name: fetch the pinned upstream clone
         run: scripts/fetch-upstream.sh "$HOME/antiwire-upstream"
 
@@ -60,7 +71,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/antiwire-apicurio
-          key: apicurio-${{ hashFiles('config/parity-pins.json') }}
+          key: apicurio-${{ steps.pins.outputs.apicurio }}
       - name: fetch the pinned apicurio clone
         run: scripts/fetch-apicurio.sh "$HOME/antiwire-apicurio"
 

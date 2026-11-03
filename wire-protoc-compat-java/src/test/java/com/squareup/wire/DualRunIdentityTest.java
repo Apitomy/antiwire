@@ -191,12 +191,32 @@ class DualRunIdentityTest {
         + " divergentApicurio=" + divergentApicurio);
   }
 
-  /** Census: every committed ledger row was observed this run. A stale row fails. */
+  /** Census: every committed ledger row was observed this run (a stale row fails) and its
+   *  doc_ref anchor exists in the cited doc, so the compatibility-matrix paragraph a row
+   *  leans on cannot rot away from the assertion that enforces it. */
   @Order(3)
   @Test void ledgerRowsAllObserved() {
     for (DualRunDivergences.DivergenceRow row : DualRunDivergences.all()) {
       if (!OBSERVED.contains(row.key())) {
         throw new AssertionError("stale ledger row, no observation matched it this run: "
+            + rowToString(row));
+      }
+      int split = row.docRef.indexOf(':');
+      if (split < 0) {
+        throw new AssertionError("ledger row doc_ref has no '<doc>:<anchor>' split: "
+            + rowToString(row));
+      }
+      Path doc = DualRunDivergences.repoRoot().resolve(row.docRef.substring(0, split).trim());
+      String anchor = row.docRef.substring(split + 1).trim();
+      String text;
+      try {
+        text = new String(Files.readAllBytes(doc), StandardCharsets.UTF_8);
+      } catch (IOException e) {
+        throw new AssertionError("ledger row doc_ref cites a missing doc: "
+            + rowToString(row), e);
+      }
+      if (!text.contains(anchor)) {
+        throw new AssertionError("ledger row doc_ref anchor missing from " + doc + ": "
             + rowToString(row));
       }
     }
