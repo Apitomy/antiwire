@@ -45,11 +45,12 @@ if [ ! -d "$CLONE_PATH/.git" ]; then
 fi
 
 # The pinned commit may predate or postdate the default branch the clone was made from.
-# TASK-39 deviation (recorded in the design's implementation reconciliation): the pinned
-# commit 48e2742 exists only on a local branch of the maintainer's registry clone and is
-# not on any GitHub ref (branch heads and refs/pull both checked), so when the remote
-# clone does not carry the object, the script fetches it from a source repository given
-# by $ANTIWIRE_APICURIO_SOURCE. Identity is still the hash: nothing is trusted from the
+# The 2026-11-03 pin (23a09ab4) is on origin/main, so a fresh GitHub clone carries it and
+# the fallbacks below never run. They stay for a future pin that again lives off GitHub
+# (the first TASK-39 pin, 48e2742, existed only on a local branch of the maintainer's
+# registry clone and no cache-cold CI run could fetch it; deviation recorded in the
+# design's implementation reconciliation): $ANTIWIRE_APICURIO_SOURCE names a local clone
+# to fetch the object from. Identity is still the hash: nothing is trusted from the
 # source beyond carrying the pinned object.
 if ! git -C "$CLONE_PATH" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
   git -C "$CLONE_PATH" fetch origin --force || true

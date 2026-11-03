@@ -142,21 +142,24 @@ jars and the port.
 The dual-run identity harness (TASK-39, suite `dual-run-identity`, ledger
 `config/dual-run-divergences.tsv`) loads every `.proto` of the pinned corpora (square/wire
 7.1.0 at commit `9f62097dfe4995b5709d001ca0187e30ca0530ef`, Apicurio Registry at commit
-`48e2742acc68fae456fe252cc8b08243e376ebfc`) through both real Wire (relocated fixture) and
+`23a09ab4e128e8a308efbcc333c5318734126b55`, an origin/main commit so a cache-cold clone
+from GitHub reaches it) through both real Wire (relocated fixture) and
 the port in one JVM, and asserts identical load outcomes, failure chains, descriptor bytes
 (`SchemaEncoder.encode`, raw, no stripper) and canonical text (`ProtoFile.toSchema()`).
 Divergences recorded by the corpus run of 2026-11-03 (213 files compared, one divergent):
 
-- **Bytes-typed option values fail to link on the port.** On any file carrying a
-  bytes-typed option value (corpus witness:
+- **Bytes-typed option values throw at descriptor encoding on the port.** On any file
+  carrying a bytes-typed option value (corpus witness:
   `squareup/proto2/kotlin/alloptions/all_options.proto`, `option (bytes_value) = ...` on
-  `google.protobuf.MethodOptions` extensions), the port throws
-  `ClassCastException: class okio.ByteString cannot be cast to class com.squareup.wire.Bytes`
-  during linking, while real Wire 7.1.0 loads the same file. The parsed option value stays
-  an okio ByteString where the port's model expects its own `com.squareup.wire.Bytes`.
-  Every other byte- and string-typed construct in the corpus links and byte-compares
-  equal. Fix owner: the schema port team; until then the divergence is a ledger row
-  (`load-outcome`, port=THREW, upstream=LOADED), never a silent skip.
+  `google.protobuf.MethodOptions` extensions), the port loads and links the file and then
+  throws `ClassCastException: class okio.ByteString cannot be cast to class
+  com.squareup.wire.Bytes` while `SchemaEncoder.encode` serializes the option value into
+  the descriptor; real Wire 7.1.0 encodes the same file. The parsed option value stays an
+  okio ByteString where the port's model expects its own `com.squareup.wire.Bytes`. Every
+  other byte- and string-typed construct in the corpus encodes and byte-compares equal.
+  The harness attributes any throw inside the per-file pipeline to `load-outcome`, so the
+  divergence is a ledger row (`load-outcome`, port=THREW, upstream=LOADED), never a
+  silent skip. Fix owner: the schema port team.
 
 Built-in narrowed probes that are NOT ledger rows:
 

@@ -8,9 +8,9 @@
   },
   "clone_path_default": "/tmp/wire",
   "apicurio_registry": {
-    "comment": "TASK-39: pinned Apicurio Registry corpus clone for the dual-run identity harness (scripts/fetch-apicurio.sh, DualRunIdentityTest). The commit is the same SHA docs/compatibility-matrix.md cites. A bare commit, verified by git rev-parse; not a tag.",
+    "comment": "TASK-39: pinned Apicurio Registry corpus clone for the dual-run identity harness (scripts/fetch-apicurio.sh, DualRunIdentityTest). The commit is the same SHA docs/compatibility-matrix.md cites. A bare commit, verified by git rev-parse; not a tag. Re-pinned 2026-11-03 to a commit on origin/main so a cache-cold clone from GitHub reaches it (the first pin, 48e2742, lived only on a local branch).",
     "repository": "https://github.com/apicurio/apicurio-registry",
-    "commit": "48e2742acc68fae456fe252cc8b08243e376ebfc",
+    "commit": "23a09ab4e128e8a308efbcc333c5318734126b55",
     "clone_path_default": "/tmp/apicurio-registry"
   },
   "fixtures": {
