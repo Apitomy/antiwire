@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,16 +16,22 @@ import java.util.Optional;
  * TASK-39 divergence ledger: config/dual-run-divergences.tsv. A row makes the observed
  * difference a NARROWED assertion (the shapes must equal the row exactly, so drift in
  * either direction fails); a difference with no row fails the build and prints the row to
- * record. This file is the ledger and never config/surface-baseline.tsv, which is a
- * generated artifact of scripts/surface-check.py (write_baseline opens it mode "w"):
- * hand rows there would be destroyed.
+ * record; a row whose shapes went back to equal fails as stale. Rows are keyed by
+ * (half, root, path, op) with the corpus root from config/dual-run-corpus.tsv, because
+ * relativePath alone is ambiguous where roots repeat file names (apicurio carries
+ * byte-identical decimal.proto and metadata.proto under both src/main/proto and
+ * src/test/proto): a row names exactly which physical file it covers. This file is the
+ * ledger and never config/surface-baseline.tsv, which is a generated artifact of
+ * scripts/surface-check.py (write_baseline opens it mode "w"): hand rows there would be
+ * destroyed.
  */
 final class DualRunDivergences {
   static final String[] HEADER =
-      {"half", "path", "op", "port_shape", "upstream_shape", "reason", "doc_ref"};
+      {"half", "root", "path", "op", "port_shape", "upstream_shape", "reason", "doc_ref"};
 
   static final class DivergenceRow {
     final String half;
+    final String root;
     final String path;
     final String op;
     final String portShape;
@@ -36,22 +41,23 @@ final class DualRunDivergences {
 
     DivergenceRow(String[] f) {
       this.half = f[0];
-      this.path = f[1];
-      this.op = f[2];
-      this.portShape = f[3];
-      this.upstreamShape = f[4];
-      this.reason = f[5];
-      this.docRef = f[6];
+      this.root = f[1];
+      this.path = f[2];
+      this.op = f[3];
+      this.portShape = f[4];
+      this.upstreamShape = f[5];
+      this.reason = f[6];
+      this.docRef = f[7];
     }
 
     String key() {
-      return DualRunDivergences.key(half, path, op);
+      return DualRunDivergences.key(half, root, path, op);
     }
   }
 
   /** The single ledger key format; a drift here breaks the stale-row census silently. */
-  static String key(String half, String path, String op) {
-    return half + "|" + path + "|" + op;
+  static String key(String half, String root, String path, String op) {
+    return half + "|" + root + "|" + path + "|" + op;
   }
 
   private static Map<String, DivergenceRow> rows;
@@ -59,12 +65,13 @@ final class DualRunDivergences {
   private DualRunDivergences() {
   }
 
-  /** Row for (half, path, op), or empty. Loaded once from config/dual-run-divergences.tsv. */
-  static synchronized Optional<DivergenceRow> match(String half, String path, String op) {
+  /** Row for (half, root, path, op), or empty. Loaded once from config/dual-run-divergences.tsv. */
+  static synchronized Optional<DivergenceRow> match(String half, String root, String path,
+      String op) {
     if (rows == null) {
       rows = load();
     }
-    return Optional.ofNullable(rows.get(key(half, path, op)));
+    return Optional.ofNullable(rows.get(key(half, root, path, op)));
   }
 
   /** All committed rows, for the stale-row census. */
@@ -101,14 +108,18 @@ final class DualRunDivergences {
             + ledger + ": " + line);
       }
       DivergenceRow row = new DivergenceRow(fields);
-      loaded.put(row.key(), row);
+      if (loaded.put(row.key(), row) != null) {
+        // Two rows for one key is ambiguous (which row narrows the assertion?), never last-wins.
+        throw new IllegalStateException("duplicate divergence ledger key in " + ledger + ": "
+            + row.key());
+      }
     }
     return Collections.unmodifiableMap(loaded);
   }
 
   /** The repo root holding config/, found by walking up from the working directory. */
   static Path repoRoot() {
-    Path dir = Paths.get("").toAbsolutePath();
+    Path dir = java.nio.file.Paths.get("").toAbsolutePath();
     while (dir != null) {
       if (Files.exists(dir.resolve("config").resolve("dual-run-divergences.tsv"))) {
         return dir;
@@ -116,7 +127,7 @@ final class DualRunDivergences {
       dir = dir.getParent();
     }
     throw new IllegalStateException("could not locate config/dual-run-divergences.tsv "
-        + "above " + Paths.get("").toAbsolutePath());
+        + "above " + java.nio.file.Paths.get("").toAbsolutePath());
   }
 
   static Path ledgerFile() {

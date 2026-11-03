@@ -42,7 +42,7 @@ class DualRunIdentityTest {
   static final SchemaSide PORT = new PortSide();
   static final SchemaSide UPSTREAM = new UpstreamSide();
 
-  /** (half|path|op) keys observed this run; feeds the stale-row census. */
+  /** (half|root|path|op) keys observed this run; feeds the stale-row census. */
   static final Set<String> OBSERVED = new LinkedHashSet<>();
 
   /** Per-file load outcome this run (both-LOADED / both-THREW / divergent); feeds the
@@ -203,7 +203,7 @@ class DualRunIdentityTest {
   }
 
   // ---- the five named assert methods ----
-  // Each consults the ledger for its own (half, path, op) row through
+  // Each consults the ledger for its own (half, root, path, op) row through
   // assertNarrowedOrDiverge; a covered divergence becomes a narrowed assertion (shapes
   // must equal the row exactly), an uncovered one throws with the exact TSV row to record.
 
@@ -266,25 +266,32 @@ class DualRunIdentityTest {
         }
       }
     }
-    OBSERVED.add(DualRunDivergences.key(f.half, f.relativePath, op));
+    OBSERVED.add(DualRunDivergences.key(f.half, f.root, f.relativePath, op));
   }
 
   // ---- helpers ----
 
-  /** The shared ledger consultation: equal passes and is recorded, a covered divergence
-   *  is narrowed to the row's exact shapes (recorded), an uncovered one throws the row. */
+  /** The shared ledger consultation, stale detection in BOTH directions: equal passes and
+   *  is recorded, unless a committed row covers the key, in which case the recorded
+   *  difference was fixed and the row is stale; a covered divergence is narrowed to the
+   *  row's exact shapes (recorded); an uncovered one throws the row to record. */
   static void assertNarrowedOrDiverge(String op, CorpusFile f, DualRunOutput p,
       DualRunOutput u, boolean equal) {
+    java.util.Optional<DualRunDivergences.DivergenceRow> row =
+        DualRunDivergences.match(f.half, f.root, f.relativePath, op);
     if (equal) {
-      OBSERVED.add(DualRunDivergences.key(f.half, f.relativePath, op));
+      if (row.isPresent()) {
+        throw new AssertionError("stale divergence row, the shapes are equal this run (the"
+            + " recorded difference was fixed or the corpus moved); delete the row: "
+            + rowToString(row.get()));
+      }
+      OBSERVED.add(DualRunDivergences.key(f.half, f.root, f.relativePath, op));
       return;
     }
-    java.util.Optional<DualRunDivergences.DivergenceRow> row =
-        DualRunDivergences.match(f.half, f.relativePath, op);
     if (row.isPresent()) {
       assertEquals(row.get().portShape, p.shape(op), narrowLabel(f, op, "port"));
       assertEquals(row.get().upstreamShape, u.shape(op), narrowLabel(f, op, "upstream"));
-      OBSERVED.add(DualRunDivergences.key(f.half, f.relativePath, op));
+      OBSERVED.add(DualRunDivergences.key(f.half, f.root, f.relativePath, op));
     } else {
       throw divergence(f, op, p, u);
     }
@@ -313,24 +320,24 @@ class DualRunIdentityTest {
   static AssertionError divergence(CorpusFile f, String op, DualRunOutput p, DualRunOutput u) {
     String portShape = p.shape(op);
     String upstreamShape = u.shape(op);
-    return new AssertionError("DUAL-RUN DIVERGENCE [" + f.half + "|" + f.relativePath
-        + "] op=" + op
+    return new AssertionError("DUAL-RUN DIVERGENCE [" + f.half + "|" + f.root + "|"
+        + f.relativePath + "] op=" + op
         + " port=" + portShape
         + " upstream=" + upstreamShape
         + " : record this row in config/dual-run-divergences.tsv (with a reason and a"
         + " docs/compatibility-matrix.md anchor):\n"
-        + f.half + "\t" + f.relativePath + "\t" + op + "\t" + portShape + "\t"
+        + f.half + "\t" + f.root + "\t" + f.relativePath + "\t" + op + "\t" + portShape + "\t"
         + upstreamShape + "\tTODO-reason\tdocs/compatibility-matrix.md: TODO-anchor");
   }
 
   static String narrowLabel(CorpusFile f, String op, String side) {
-    return f.half + "|" + f.relativePath + " op=" + op + " " + side
+    return f.half + "|" + f.root + "|" + f.relativePath + " op=" + op + " " + side
         + " shape (narrowed by a ledger row)";
   }
 
   static String rowToString(DualRunDivergences.DivergenceRow row) {
-    return String.join("\t", row.half, row.path, row.op, row.portShape, row.upstreamShape,
-        row.reason, row.docRef);
+    return String.join("\t", row.half, row.root, row.path, row.op, row.portShape,
+        row.upstreamShape, row.reason, row.docRef);
   }
 
   /** Wire's vendored well-known protos: the import-resolution fallback for both halves. */

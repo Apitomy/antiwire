@@ -106,7 +106,8 @@ if [ "$apicurio_count" -lt "$MIN_CORPUS_APICURIO" ]; then
   floor_fail="$floor_fail apicurio corpus $apicurio_count below floor $MIN_CORPUS_APICURIO;"
 fi
 
-# Report reconciliation and doc_ref anchor checks in one python pass.
+# Report reconciliation, doc_ref anchor checks and --update row extraction in one python
+# pass. Rows are keyed (half, root, path, op), matching the harness ledger keys.
 verdict="$(python3 - "$REPORT" "$ROOT/config/dual-run-divergences.tsv" "$ROOT" "$UPDATE" <<'PY'
 import os, re, sys
 report, ledger, root, update = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
@@ -147,18 +148,18 @@ with open(ledger) as f:
     lines = [l.rstrip("\n") for l in f if l.strip()]
 for i, line in enumerate(lines):
     if i == 0:
-        if line.split("\t") != ["half","path","op","port_shape","upstream_shape","reason","doc_ref"]:
+        if line.split("\t") != ["half","root","path","op","port_shape","upstream_shape","reason","doc_ref"]:
             print("LEDGER-HEADER-MISMATCH", file=sys.stderr)
             sys.exit(2)
         continue
     fields = line.split("\t")
-    if len(fields) != 7:
+    if len(fields) != 8:
         print("LEDGER-ROW-FIELD-COUNT %s" % line, file=sys.stderr)
         sys.exit(2)
     rows.append(fields)
 
 for fields in rows:
-    doc_ref = fields[6]
+    doc_ref = fields[7]
     if ":" not in doc_ref:
         print("BAD-DOC-REF %s" % doc_ref, file=sys.stderr)
         sys.exit(2)
@@ -175,10 +176,26 @@ if coverage is not None:
 for p in problems:
     print("PROBLEM %s" % p)
 if update == "1":
-    for text in problem_texts:
-        for line in text.splitlines():
-            if re.match(r"^(upstream|apicurio)\t[^\t]+\t[^\t]+\t[^\t]+\t[^\t]+\t[^\t]+\t[^\t]+$", line):
-                print("ROW " + line)
+    # --update only operates on a report whose reconciliation is current: if the report
+    # predates the ledger or the corpus TSV, its failure rows describe a superseded run.
+    stale = []
+    corpus_tsv = os.path.join(root, "config", "dual-run-corpus.tsv")
+    for other, label in ((ledger, "config/dual-run-divergences.tsv"),
+                         (corpus_tsv, "config/dual-run-corpus.tsv")):
+        if os.path.getmtime(report) < os.path.getmtime(other):
+            stale.append(label)
+    if stale:
+        print("UPDATE-REFUSED-STALE the surefire report predates %s" % " and ".join(stale))
+    else:
+        existing = set("\t".join(f[:4]) for f in rows)
+        for text in problem_texts:
+            for line in text.splitlines():
+                if re.match(r"^(upstream|apicurio)\t[^\t]+\t[^\t]+\t[^\t]+\t[^\t]+\t[^\t]+"
+                            r"\t[^\t]+\t[^\t]+$", line):
+                    if "\t".join(line.split("\t")[:4]) in existing:
+                        print("REFUSED-DUPLICATE " + line)
+                    else:
+                        print("ROW " + line)
 PY
 )" || { echo "RESULT dual-run-identity.status=FAIL"; echo "RESULT dual-run-identity.note=the surefire report or the divergence ledger could not be parsed"; exit "$EXIT_FAIL"; }
 
@@ -200,9 +217,22 @@ if [ "$loaded_apicurio" -lt "$MIN_LOADED_APICURIO" ]; then
 fi
 
 if [ "$UPDATE" -eq 1 ]; then
-  printf '%s\n' "$verdict" | grep '^ROW ' | sed 's/^ROW //' >> "$ROOT/config/dual-run-divergences.tsv"
-  appended=$(printf '%s\n' "$verdict" | grep -c '^ROW ' || true)
-  echo "--update: appended $appended observed divergence row(s) to config/dual-run-divergences.tsv for review"
+  if printf '%s\n' "$verdict" | grep -q '^UPDATE-REFUSED-STALE '; then
+    echo "RESULT dual-run-identity.update=REFUSED"
+    echo "RESULT dual-run-identity.update.note=$(printf '%s\n' "$verdict" | sed -n 's/^UPDATE-REFUSED-STALE //p'); no rows appended: re-run mvn verify and --update against the fresh report"
+  else
+    printf '%s\n' "$verdict" | grep '^REFUSED-DUPLICATE ' | sed 's/^REFUSED-DUPLICATE /--update: refused duplicate key already in the ledger, not appended: /'
+    if [ -s "$ROOT/config/dual-run-divergences.tsv" ] \
+        && [ -n "$(tail -c 1 "$ROOT/config/dual-run-divergences.tsv")" ]; then
+      # The last byte is not a newline: without this guard the appended row would splice
+      # itself onto the last committed line and corrupt the ledger.
+      printf '\n' >> "$ROOT/config/dual-run-divergences.tsv"
+      echo "--update: ledger had no trailing newline; added one before appending"
+    fi
+    printf '%s\n' "$verdict" | grep '^ROW ' | sed 's/^ROW //' >> "$ROOT/config/dual-run-divergences.tsv"
+    appended=$(printf '%s\n' "$verdict" | grep -c '^ROW ' || true)
+    echo "--update: appended $appended observed divergence row(s) to config/dual-run-divergences.tsv for review"
+  fi
 fi
 
 corpus_total=$((upstream_count + apicurio_count))
