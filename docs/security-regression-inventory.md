@@ -49,8 +49,9 @@ For the reader items the corpus payloads were replayed on 2026-10-02 through thr
 a pre-fix scratch copy of the port's `ProtoReader`/`ByteArrayProtoReader32` (copies in `/tmp`,
 defensive checks reverted to the pre-fix arithmetic; no production file was touched), the current
 port classes, and the relocated upstream 7.1.0 oracle (`wire-upstream-shaded`, package
-`io.apicurio.antiwire.parity.*`; the fixture carried its pre-DEC-8 name
-`io.github.paoloantinori.antiwire.parity.*` at replay time, renamed 2026-10-02). Results:
+`io.apitomy.antiwire.parity.*` since DEC-19, 2026-11-03; at replay time the fixture carried
+`io.github.paoloantinori.antiwire.parity.*`, renamed to `io.apicurio.antiwire.parity.*` on
+2026-10-02). Results:
 
 | Payload | Pre-fix scratch | Current port | Upstream 7.1.0 oracle |
 |---|---|---|---|

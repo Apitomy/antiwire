@@ -4,6 +4,8 @@
 >
 > STALE (2026-10-07): the last valid measurement is session 5 at candidate 82c3624. Later commits changed measured modules (275dcc2 TASK-26, 84a6a9f TASK-16.1, ec15e18 TASK-16.2, 7297b66 TASK-21, 68823ba TASK-16.2.1), so under DEC-13 this record does not cover the current HEAD and must be renewed on the final candidate (TASK-21).
 
+> Coordinate note (2026-11-03): the groupId became `io.apitomy` (DEC-19) after the measurements below; the recorded paths and whole-jar checksums carry the `io.apicurio` coordinates of their time (checksums embed the META-INF/maven path), and are re-issued by the already-required remeasurement (TASK-21).
+
 
 Measured on 2026-10-02 in three sessions: 12:08-12:56 CEST (initial full matrix, 15 wire
 benchmarks), 13:36-13:50 CEST (decode re-measurement after the decode entry-point

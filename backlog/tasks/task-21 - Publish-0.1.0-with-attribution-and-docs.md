@@ -4,7 +4,7 @@ title: Publish 0.1.0 with attribution and docs
 status: To Do
 assignee: []
 created_date: '2026-09-29 09:23'
-updated_date: '2026-10-29 10:57'
+updated_date: '2026-11-03 16:55'
 labels: []
 milestone: m-11
 dependencies:
@@ -17,7 +17,7 @@ dependencies:
   - TASK-16.2
   - TASK-21.1
 references:
-  - 'https://github.com/Apicurio/antiwire/issues/3'
+  - 'https://github.com/Apitomy/antiwire/issues/3'
 documentation:
   - docs/decisions.md
 priority: high
@@ -27,12 +27,12 @@ ordinal: 21000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Publish the first release only after the approved compatibility, complete applicable test coverage, Apicurio integration, measured footprint/performance and demonstrated maintenance gates pass. Use intended groupId io.apicurio only after namespace/publication authorization is explicitly recorded; project planning is not authorization to publish or transfer. Include sources, javadoc, reproducible build instructions, pinned upstream provenance and a per-file license inventory covering headers and embedded notices. Preserve Google Nano BSD-style notices in the reader family and ProtoWriter, R8 notices, JetBrains notices, mixed Square Apache notices and notices for any vendored dependencies. Coordinate the final external publish action with the maintainer.
+Publish the first release only after the approved compatibility, complete applicable test coverage, Apicurio integration, measured footprint/performance and demonstrated maintenance gates pass. Use the io.apitomy groupId (DEC-19, 2026-11-03; io.apicurio until then per DEC-8) only with namespace/publication authorization explicitly recorded; project planning is not authorization to publish or transfer. Include sources, javadoc, reproducible build instructions, pinned upstream provenance and a per-file license inventory covering headers and embedded notices. Preserve Google Nano BSD-style notices in the reader family and ProtoWriter, R8 notices, JetBrains notices, mixed Square Apache notices and notices for any vendored dependencies. Coordinate the final external publish action with the maintainer.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Explicit maintainer release approval for publishing artifacts is recorded before anything is published; the io.apicurio namespace itself is already authorized (DEC-8). Sources, javadoc and POM metadata accompany a reproducible release build.
+- [ ] #1 Explicit maintainer release approval for publishing artifacts is recorded before anything is published; the io.apitomy namespace (DEC-19, 2026-11-03; io.apicurio until then per DEC-8) itself is already authorized. Sources, javadoc and POM metadata accompany a reproducible release build.
 - [ ] #2 The final release candidate passes all applicable runtime/schema/protoc/compiler/profile/golden checks with no required case pending, and the recorded Apicurio integration evidence matches the same candidate.
 - [ ] #3 Footprint/performance reports and their acceptance records identify the released candidate by build revision, artifact checksums and resolved dependency identities. Relevant changes require remeasurement and renewed acceptance; stale records block release. TASK-23's demonstrated synchronization procedure is available.
 - [ ] #4 The candidate POMs and resolved consumer classpaths contain no Kotlin, Kotlin-backed production dependencies, leaked test/build tools or duplicate upstream/port classes. Production bytecode and API use selected on Java 11 satisfy that baseline, including multi-release dependencies.
@@ -56,13 +56,13 @@ Still open and owned here:
 3. Same-candidate Apicurio revalidation and the Apicurio marginal. The original TASK-18 integration branch was lost (wiped from the Mac /tmp, see the dated notes below); the integration was redone on a pushed branch, `antiwire-integration` on `paoloantinori/apicurio-registry` (TASK-33.4), which must be rerun against the final candidate.
 4. Regeneration of docs/release-candidate.md for the final candidate, using the repaired builder (scripts/release-build.sh).
 5. The published-artifact Java 11 check, and the release-time check that published dependency metadata contains no Kotlin.
-6. Explicit maintainer approval of publication and of the io.apicurio namespace use.
+6. Explicit maintainer approval of publication and of the io.apitomy namespace use (DEC-19; io.apicurio until 2026-11-03).
 
 Historical record, recovered verbatim from commit 295ef5f0e7a1e45937417b9f621044d8139df6f5 (the Backlog MCP rewrite had dropped it): the 2026-10-02 17:50 release-groundwork comment. It describes the state on its original date, not the current approval state.
 
 Mechanical release groundwork landed (no publish, no tag, no deploy): docs/license-inventory.md (per-file notice audit, all 159 production sources plus 9 resources, zero missing notices, three working assumptions corrected: IntArrayList family is JetBrains not R8, ProtoReader32AsProtoReader carries the antiwire header not a Nano notice, okio/Base64 carries the ASF header it vendored with; open discrepancy flagged: NOTICE attributes the ProtoReader family and MathMethods to Google under Apache 2.0 while the files carry BSD-style notices, and DEC-12 says NOTICE carries the BSD texts verbatim); README release-contract section; scripts/release-build.sh producing target/release/ (9 jars + MANIFEST.sha256) and the generated docs/release-candidate.md identifying candidate a45b0f0 with the two open gates (footprint signature with the guava pin observation, encodeForward) auto-filled from the live acceptance rows plus the DEC-13 freshness caveat; pom.xml header comment corrected for the resolved DEC-8 (comment-only, effective model identical). verify.sh on JDK 17.0.12: all 12 ACTIVE suites PASS. No AC ticked: publication approval, final-candidate freshness, and the Java 11 published-artifact smoke remain.
 
-GitHub tracking issue: https://github.com/Apicurio/antiwire/issues/3
+GitHub tracking issue: https://github.com/Apitomy/antiwire/issues/3
 
 2026-10-06 maintainer confirmations, recorded in docs/decisions.md. (1) The io.apicurio namespace is confirmed for use (DEC-8 reconfirmed). This covers the namespace only: AC#1's explicit release approval for publishing artifacts remains open and is the maintainer's gate, so no publish, tag or deploy follows from this note. (2) The JDK-typed public API without okio is confirmed as the intended design (new DEC-14, backed by ConsumerApiSurfaceTest and JdkSchemaLoaderValidationTest).
 
@@ -75,6 +75,10 @@ GitHub tracking issue: https://github.com/Apicurio/antiwire/issues/3
 2026-10-29 (DEC-18 snapshot publishing review): the parent pom now copies LICENSE and NOTICE into META-INF of every main and test jar and declares Apache-2.0 plus BSD-3-Clause `<licenses>` (verified on a local file deploy: all four published binary jars carry both files, NOTICE byte-identical to the root file). Open for the release audit (AC#5): the -sources and -javadoc jars do not carry LICENSE or NOTICE (sources keep the per-file headers; the javadoc jar has neither), and the poms still lack the `<url>`, `<scm>` and `<developers>` elements Central requires for a release.
 
 2026-10-29 /simplify on the DEC-18 change, finding not applied there: the LICENSE/NOTICE copy uses ${project.basedir}/.. and copy-resources silently copies nothing when its includes match no file, so a future module not sitting directly under the repository root would ship jars without the notices and the build would still pass. Guard to add before the release: a check that every shipped jar (main and tests) contains META-INF/LICENSE and META-INF/NOTICE, either an enforcer requireFilesExist per jar module or a jar-content assertion in scripts/release-build.sh or scripts/test-release-gates.sh.
+
+2026-11-03, DEC-19: groupId is now io.apitomy (was io.apicurio, DEC-8) and the repository moved to the Apitomy organization. Consequences for the open items: docs/release-candidate.md regeneration and the published-artifact checks (items 4 and 5) must use io.apitomy coordinates; the Apicurio revalidation (item 3) must re-point the fork branch antiwire-integration, whose poms still depend on io.apicurio:wire-schema-java; SNAPSHOT publishing (DEC-18) now needs the io.apitomy namespace's snapshots enabled and the CENTRAL_TOKEN_* secrets stored by the Apitomy namespace admins. The recorded io.apicurio checksums in footprint/performance stay as measured, with dated coordinate notes added.
+
+2026-11-03 correction (from the DEC-19 code review): the earlier text naming io.apicurio as the namespace to authorize is superseded by DEC-19; AC#1 and the description above now say io.apitomy, and open item 6's "approval of the io.apicurio namespace use" reads approval of the io.apitomy namespace use, as does the m-11 milestone line.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

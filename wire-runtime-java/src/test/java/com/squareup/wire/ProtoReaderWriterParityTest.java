@@ -16,7 +16,7 @@ import org.junit.Test;
 /**
  * TASK-5 spike evidence: byte-for-byte and exception-for-exception parity between this port's
  * {@link ProtoReader}/{@link ProtoWriter} and upstream wire-runtime-jvm 7.1.0 (relocated to
- * {@code io.apicurio.antiwire.parity.wire} by the wire-upstream-shaded fixture).
+ * {@code io.apitomy.antiwire.parity.wire} by the wire-upstream-shaded fixture).
  *
  * <p>Known intentional asymmetry: upstream's {@code internal.ProtocolException} is a JVM
  * typealias of {@link java.net.ProtocolException}; Java has no typealias, so this port throws a
@@ -31,11 +31,11 @@ public class ProtoReaderWriterParityTest {
     Random random = new Random(0xC0FFEE);
     for (int sequence = 0; sequence < 500; sequence++) {
       Buffer ours = new Buffer();
-      io.apicurio.antiwire.parity.okio.Buffer theirs =
-          new io.apicurio.antiwire.parity.okio.Buffer();
+      io.apitomy.antiwire.parity.okio.Buffer theirs =
+          new io.apitomy.antiwire.parity.okio.Buffer();
       ProtoWriter ourWriter = new ProtoWriter(ours);
-      io.apicurio.antiwire.parity.wire.ProtoWriter theirWriter =
-          new io.apicurio.antiwire.parity.wire.ProtoWriter(theirs);
+      io.apitomy.antiwire.parity.wire.ProtoWriter theirWriter =
+          new io.apitomy.antiwire.parity.wire.ProtoWriter(theirs);
 
       int ops = 1 + random.nextInt(200);
       for (int op = 0; op < ops; op++) {
@@ -74,7 +74,7 @@ public class ProtoReaderWriterParityTest {
             FieldEncoding encoding = FieldEncoding.values()[random.nextInt(4)];
             ourWriter.writeTag(field, encoding);
             theirWriter.writeTag(field,
-                io.apicurio.antiwire.parity.wire.FieldEncoding.values()[encoding.ordinal()]);
+                io.apitomy.antiwire.parity.wire.FieldEncoding.values()[encoding.ordinal()]);
             break;
           case 6:
             String s = randomString(random);
@@ -85,7 +85,7 @@ public class ProtoReaderWriterParityTest {
             byte[] bytes = new byte[random.nextInt(101)];
             random.nextBytes(bytes);
             ourWriter.writeBytes(okio.ByteString.of(bytes));
-            theirWriter.writeBytes(io.apicurio.antiwire.parity.okio.ByteString.of(bytes));
+            theirWriter.writeBytes(io.apitomy.antiwire.parity.okio.ByteString.of(bytes));
             break;
         }
       }
@@ -102,8 +102,8 @@ public class ProtoReaderWriterParityTest {
 
       List<String> ourTranscript = readAll(new ProtoReader(new Buffer().write(encoded)));
       List<String> theirTranscript = readAllUpstream(
-          new io.apicurio.antiwire.parity.wire.ProtoReader(
-              new io.apicurio.antiwire.parity.okio.Buffer().write(encoded)));
+          new io.apitomy.antiwire.parity.wire.ProtoReader(
+              new io.apitomy.antiwire.parity.okio.Buffer().write(encoded)));
       assertEquals("message " + message, theirTranscript, ourTranscript);
     }
   }
@@ -137,12 +137,12 @@ public class ProtoReaderWriterParityTest {
   }
 
   private static List<String> readAllUpstream(
-      io.apicurio.antiwire.parity.wire.ProtoReader reader) throws IOException {
+      io.apitomy.antiwire.parity.wire.ProtoReader reader) throws IOException {
     List<String> transcript = new ArrayList<>();
     long token = reader.beginMessage();
     int tag;
     while ((tag = reader.nextTag()) != -1) {
-      io.apicurio.antiwire.parity.wire.FieldEncoding encoding = reader.peekFieldEncoding();
+      io.apitomy.antiwire.parity.wire.FieldEncoding encoding = reader.peekFieldEncoding();
       switch (encoding) {
         case VARINT:
           transcript.add(tag + ":varint:" + reader.readVarint64());
@@ -281,8 +281,8 @@ public class ProtoReaderWriterParityTest {
         () -> readFirstTag(new ProtoReader(new Buffer().write(bytes))));
     // Upstream (relocated).
     IOException theirs = assertThrows(IOException.class, () -> readFirstTagUpstream(
-        new io.apicurio.antiwire.parity.wire.ProtoReader(
-            new io.apicurio.antiwire.parity.okio.Buffer().write(bytes))));
+        new io.apitomy.antiwire.parity.wire.ProtoReader(
+            new io.apitomy.antiwire.parity.okio.Buffer().write(bytes))));
     assertEquals(expectedMessage, theirs.getMessage());
     assertEquals(expectedMessage, ours.getMessage());
     assertTrue("ours must be a java.net.ProtocolException like upstream's typealias",
@@ -295,7 +295,7 @@ public class ProtoReaderWriterParityTest {
   }
 
   private static void readFirstTagUpstream(
-      io.apicurio.antiwire.parity.wire.ProtoReader reader) throws IOException {
+      io.apitomy.antiwire.parity.wire.ProtoReader reader) throws IOException {
     reader.beginMessage();
     reader.nextTag();
   }
@@ -393,8 +393,8 @@ public class ProtoReaderWriterParityTest {
 
     List<String> ours = readPacked(new ProtoReader(new Buffer().write(bytes)));
     List<String> theirs = readPackedUpstream(
-        new io.apicurio.antiwire.parity.wire.ProtoReader(
-            new io.apicurio.antiwire.parity.okio.Buffer().write(bytes)));
+        new io.apitomy.antiwire.parity.wire.ProtoReader(
+            new io.apitomy.antiwire.parity.okio.Buffer().write(bytes)));
     assertEquals(theirs, ours);
     // Three packed values, one plain varint, and the empty packed contributes nothing.
     assertEquals(4, ours.size() - 1);
@@ -419,7 +419,7 @@ public class ProtoReaderWriterParityTest {
   }
 
   private static List<String> readPackedUpstream(
-      io.apicurio.antiwire.parity.wire.ProtoReader reader) throws IOException {
+      io.apitomy.antiwire.parity.wire.ProtoReader reader) throws IOException {
     List<String> transcript = new ArrayList<>();
     long token = reader.beginMessage();
     int tag;
@@ -453,8 +453,8 @@ public class ProtoReaderWriterParityTest {
 
     List<String> ours = readAll(new ProtoReader(new Buffer().write(bytes)));
     List<String> theirs = readAllUpstream(
-        new io.apicurio.antiwire.parity.wire.ProtoReader(
-            new io.apicurio.antiwire.parity.okio.Buffer().write(bytes)));
+        new io.apitomy.antiwire.parity.wire.ProtoReader(
+            new io.apitomy.antiwire.parity.okio.Buffer().write(bytes)));
     assertEquals(theirs, ours);
     // The groups are skipped: only the trailing field appears.
     assertEquals(1, ours.size() - 1);
@@ -470,8 +470,8 @@ public class ProtoReaderWriterParityTest {
     IOException ours = assertThrows(IOException.class,
         () -> readFirstTag(new ProtoReader(new Buffer().write(bytes))));
     IOException theirs = assertThrows(IOException.class, () -> readFirstTagUpstream(
-        new io.apicurio.antiwire.parity.wire.ProtoReader(
-            new io.apicurio.antiwire.parity.okio.Buffer().write(bytes))));
+        new io.apitomy.antiwire.parity.wire.ProtoReader(
+            new io.apitomy.antiwire.parity.okio.Buffer().write(bytes))));
     // Upstream's okio.EOFException is a JVM typealias of java.io.EOFException, so both sides
     // throw java.io.EOFException here.
     assertEquals(java.io.EOFException.class, theirs.getClass());
@@ -491,8 +491,8 @@ public class ProtoReaderWriterParityTest {
     IOException ours = assertThrows(IOException.class,
         () -> readDeep(new ProtoReader(new Buffer().write(payload))));
     IOException theirs = assertThrows(IOException.class, () -> readDeepUpstream(
-        new io.apicurio.antiwire.parity.wire.ProtoReader(
-            new io.apicurio.antiwire.parity.okio.Buffer().write(payload))));
+        new io.apitomy.antiwire.parity.wire.ProtoReader(
+            new io.apitomy.antiwire.parity.okio.Buffer().write(payload))));
     assertEquals("Wire recursion limit exceeded", theirs.getMessage());
     assertEquals("Wire recursion limit exceeded", ours.getMessage());
   }
@@ -512,12 +512,12 @@ public class ProtoReaderWriterParityTest {
   }
 
   private static void readDeepUpstream(
-      io.apicurio.antiwire.parity.wire.ProtoReader reader) throws IOException {
+      io.apitomy.antiwire.parity.wire.ProtoReader reader) throws IOException {
     long token = reader.beginMessage();
     int tag;
     while ((tag = reader.nextTag()) != -1) {
       if (reader.peekFieldEncoding()
-          == io.apicurio.antiwire.parity.wire.FieldEncoding.LENGTH_DELIMITED) {
+          == io.apitomy.antiwire.parity.wire.FieldEncoding.LENGTH_DELIMITED) {
         readDeepUpstream(reader);
       } else {
         reader.skip();
@@ -541,8 +541,8 @@ public class ProtoReaderWriterParityTest {
 
     String ours = readDelimitedString(new ProtoReader(new Buffer().write(bytes)));
     String theirs = readDelimitedStringUpstream(
-        new io.apicurio.antiwire.parity.wire.ProtoReader(
-            new io.apicurio.antiwire.parity.okio.Buffer().write(bytes)));
+        new io.apitomy.antiwire.parity.wire.ProtoReader(
+            new io.apitomy.antiwire.parity.okio.Buffer().write(bytes)));
     assertEquals("6:héllo", theirs); // é is two bytes in UTF-8
     assertEquals(theirs, ours);
   }
@@ -556,7 +556,7 @@ public class ProtoReaderWriterParityTest {
   }
 
   private static String readDelimitedStringUpstream(
-      io.apicurio.antiwire.parity.wire.ProtoReader reader) throws IOException {
+      io.apitomy.antiwire.parity.wire.ProtoReader reader) throws IOException {
     long token = reader.beginMessage();
     int length = reader.nextLengthDelimited();
     String value = reader.readString();

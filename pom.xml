@@ -2,10 +2,11 @@
 <!--
   antiwire parent pom.
 
-  Coordinates: groupId io.apicurio per the DEC-8 resolution (maintainer directive
-  2026-10-02; docs/decisions.md), which replaced the earlier io.github.paoloantinori
-  placeholder. Publishing stays closed until TASK-21's release gates pass and the
-  maintainer approves the final candidate: maven.deploy.skip is set below as a guard.
+  Coordinates: groupId io.apitomy per DEC-19 (2026-11-03, repository moved to the Apitomy
+  organization; docs/decisions.md). It replaced io.apicurio (DEC-8, 2026-10-02), which had
+  replaced the io.github.paoloantinori placeholder. Publishing stays closed until TASK-21's
+  release gates pass and the maintainer approves the final candidate: maven.deploy.skip is
+  set below as a guard.
 
   Module boundaries are the fixed ones of OPEN-2: runtime standalone, schema depending on
   runtime, generator optional; the test-only modules (wire-upstream-shaded parity fixture,
@@ -16,7 +17,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>io.apicurio</groupId>
+  <groupId>io.apitomy</groupId>
   <artifactId>antiwire-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -97,12 +98,12 @@
         <version>${kotlin.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.apicurio</groupId>
+        <groupId>io.apitomy</groupId>
         <artifactId>wire-runtime-java</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.apicurio</groupId>
+        <groupId>io.apitomy</groupId>
         <artifactId>wire-schema-java</artifactId>
         <version>${project.version}</version>
       </dependency>

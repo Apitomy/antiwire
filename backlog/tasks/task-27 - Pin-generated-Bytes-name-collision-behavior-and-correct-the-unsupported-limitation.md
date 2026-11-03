@@ -6,7 +6,7 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-10-03 00:00'
-updated_date: '2026-10-06 11:57'
+updated_date: '2026-11-03 11:57'
 labels:
   - adversarial-audit
   - codegen
@@ -14,7 +14,7 @@ labels:
 milestone: m-12
 dependencies: []
 references:
-  - 'https://github.com/Apicurio/antiwire/issues/2'
+  - 'https://github.com/Apitomy/antiwire/issues/2'
 priority: low
 ordinal: 27000
 ---
@@ -53,7 +53,7 @@ The 2026-10-06 audit independently tested the original same-package Bytes claim 
 
 Local evidence is available at /tmp/antiwire-audit-bytes-verdict.md and /tmp/aw-verify/. Those paths contain generator inputs, output, compilation results and the round-trip probe. Preserve runnable regression cases in the eventual implementation because scratch paths are temporary. No generator fix was made or is justified by the tested shapes. Remaining variants stay explicitly unverified until tested.
 
-Historical tracking reference restored after the MCP rewrite: https://github.com/Apicurio/antiwire/issues/2.
+Historical tracking reference restored after the MCP rewrite: https://github.com/Apitomy/antiwire/issues/2.
 
 The original 2026-10-03 review rationale is preserved in git at 295ef5f0e7a1e45937417b9f621044d8139df6f5, path backlog/tasks/task-27 - Generated-Bytes-import-can-be-shadowed-by-a-same-package-message.md. It contains the original JLS shadowing hypothesis, JavaPoet qualification proposal and Java 11 dependency constraints. Consult that historical analysis for context, but do not treat its refuted compilation premise or untested claims about other names as established defects. The current description and acceptance criteria govern this task.
 <!-- SECTION:NOTES:END -->

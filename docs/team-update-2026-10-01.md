@@ -1,6 +1,6 @@
 # antiwire: status and direction (2026-10-01)
 
-A note for Apicurio engineers on where the pure-Java Wire port stands, what has been verified so far, and where it is going. Repository: https://github.com/Apicurio/antiwire. This note was written mid-reconciliation on 2026-10-01: the reviewed planning baseline landed on `main` (decision record DEC-1 through DEC-13, plan-review ledger, re-scoped backlog) while the execution branch `m0-spikes` carried the first code; the two are merged, and docs/m0-execution-ledger-2026-10-01.md maps execution onto the reviewed criteria. Long-form background: `docs/research-wire-java-port-2026-09-29.md`.
+A note for Apicurio engineers on where the pure-Java Wire port stands, what has been verified so far, and where it is going. Repository: https://github.com/Apitomy/antiwire. This note was written mid-reconciliation on 2026-10-01: the reviewed planning baseline landed on `main` (decision record DEC-1 through DEC-13, plan-review ledger, re-scoped backlog) while the execution branch `m0-spikes` carried the first code; the two are merged, and docs/m0-execution-ledger-2026-10-01.md maps execution onto the reviewed criteria. Long-form background: `docs/research-wire-java-port-2026-09-29.md`.
 
 ## Why this project exists
 
@@ -33,7 +33,7 @@ Estimate, to be treated as an estimate: M1 and M2 are the bulk, roughly two to t
 
 The README's second-opinion section now separates what M0 already settled (okio vendoring, namespaces, module boundaries, the functional-port stance) from what is genuinely open, each item with its owning task. Two open items matter most to this audience: the public API compatibility matrix (which surfaces stay upstream-shaped and which get JDK types is designed in task 25, before the Apicurio integration in task 18), and whether the JDK-typed loading API fits how the Registry wants to load descriptors (today's loader juggles okio FileSystem, Path, and FakeFileSystem). Concrete API wishes from the team are cheapest to incorporate now, before M2 freezes the surface.
 
-Feedback as GitHub issues on Apicurio/antiwire, or directly to Paolo.
+Feedback as GitHub issues on Apitomy/antiwire (github.com/Apicurio/antiwire at the time of writing), or directly to Paolo.
 
 ## Honest caveats
 

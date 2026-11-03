@@ -25,7 +25,7 @@ public class ProtoAdapterParityTest {
 
   private static <T> void assertParity(
       String what, ProtoAdapter<T> ours,
-      io.apicurio.antiwire.parity.wire.ProtoAdapter<T> theirs, T value)
+      io.apitomy.antiwire.parity.wire.ProtoAdapter<T> theirs, T value)
       throws IOException {
     byte[] ourBytes = ours.encode(value);
     byte[] theirBytes = theirs.encode(value);
@@ -34,7 +34,7 @@ public class ProtoAdapterParityTest {
     assertEquals(what + " encodedSizeWithTag", theirs.encodedSizeWithTag(1, value),
         ours.encodedSizeWithTag(1, value));
     assertEquals(what + " cross-decode", value,
-        theirs.decode(io.apicurio.antiwire.parity.okio.ByteString.of(ourBytes)));
+        theirs.decode(io.apitomy.antiwire.parity.okio.ByteString.of(ourBytes)));
   }
 
   /**
@@ -53,7 +53,7 @@ public class ProtoAdapterParityTest {
 
   /** Runs seeded random values through both implementations for one adapter pair. */
   private static <T> void intParity(String what, ProtoAdapter<Integer> ours,
-      io.apicurio.antiwire.parity.wire.ProtoAdapter<Integer> theirs)
+      io.apitomy.antiwire.parity.wire.ProtoAdapter<Integer> theirs)
       throws IOException {
     List<Integer> interesting = Arrays.asList(
         0, 1, -1, 127, 128, -128, 16383, 16384, -16384, 2097151, 268435455, 268435456,
@@ -68,7 +68,7 @@ public class ProtoAdapterParityTest {
   }
 
   private static void longParity(String what, ProtoAdapter<Long> ours,
-      io.apicurio.antiwire.parity.wire.ProtoAdapter<Long> theirs)
+      io.apitomy.antiwire.parity.wire.ProtoAdapter<Long> theirs)
       throws IOException {
     List<Long> interesting = Arrays.asList(
         0L, 1L, -1L, 127L, 128L, 16383L, 16384L, 1L << 28, 1L << 35, 1L << 56, 1L << 62,
@@ -167,9 +167,9 @@ public class ProtoAdapterParityTest {
       ByteString ourValue = ByteString.of(bytes);
       byte[] ourBytes = ProtoAdapter.BYTES.encode(ourValue);
       assertArrayEquals("BYTES" + i + " bytes", p.BYTES.encode(
-          io.apicurio.antiwire.parity.okio.ByteString.of(bytes)), ourBytes);
+          io.apitomy.antiwire.parity.okio.ByteString.of(bytes)), ourBytes);
       assertEquals("BYTES" + i + " size", p.BYTES.encodedSize(
-          io.apicurio.antiwire.parity.okio.ByteString.of(bytes)),
+          io.apitomy.antiwire.parity.okio.ByteString.of(bytes)),
           ProtoAdapter.BYTES.encodedSize(ourValue));
       // No bare cross-decode: the oracle's reader rejects top-level byte strings like ours;
       // the tagged-form decode is exercised by the unknown-field test.
@@ -221,14 +221,14 @@ public class ProtoAdapterParityTest {
     for (List<String> paths : pathSets) {
       FieldMask ourValue = new FieldMask(paths);
       byte[] ourBytes = ProtoAdapter.FIELD_MASK.encode(ourValue);
-      io.apicurio.antiwire.parity.wire.FieldMask theirValue =
-          new io.apicurio.antiwire.parity.wire.FieldMask(paths);
+      io.apitomy.antiwire.parity.wire.FieldMask theirValue =
+          new io.apitomy.antiwire.parity.wire.FieldMask(paths);
       assertArrayEquals("FIELD_MASK bytes", p.FIELD_MASK.encode(theirValue), ourBytes);
       assertEquals("FIELD_MASK size", p.FIELD_MASK.encodedSize(theirValue),
           ProtoAdapter.FIELD_MASK.encodedSize(ourValue));
       assertEquals(paths, ProtoAdapter.FIELD_MASK.decode(ourBytes).getPaths());
       assertEquals(paths, p.FIELD_MASK.decode(
-          io.apicurio.antiwire.parity.okio.ByteString.of(ourBytes)).getPaths());
+          io.apitomy.antiwire.parity.okio.ByteString.of(ourBytes)).getPaths());
     }
   }
 
@@ -255,13 +255,13 @@ public class ProtoAdapterParityTest {
   }
 
   private static void assertStructParity(String what, ProtoAdapter<Object> ours,
-      io.apicurio.antiwire.parity.wire.ProtoAdapter<Object> theirs, Object value)
+      io.apitomy.antiwire.parity.wire.ProtoAdapter<Object> theirs, Object value)
       throws IOException {
     byte[] ourBytes = ours.encode(value);
     assertArrayEquals(what + " bytes", theirs.encode(value), ourBytes);
     assertEquals(what + " size", theirs.encodedSize(value), ours.encodedSize(value));
     assertEquals(what + " cross-decode", value,
-        theirs.decode(io.apicurio.antiwire.parity.okio.ByteString.of(ourBytes)));
+        theirs.decode(io.apitomy.antiwire.parity.okio.ByteString.of(ourBytes)));
   }
 
 
@@ -289,8 +289,8 @@ public class ProtoAdapterParityTest {
     value.put("", 0);
     ProtoAdapter<Map<String, Integer>> ours = ProtoAdapter.newMapAdapter(
         ProtoAdapter.STRING, ProtoAdapter.INT32);
-    io.apicurio.antiwire.parity.wire.ProtoAdapter<Map<String, Integer>> theirs =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.newMapAdapter(
+    io.apitomy.antiwire.parity.wire.ProtoAdapter<Map<String, Integer>> theirs =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.newMapAdapter(
             p.STRING, p.INT32);
     // Maps encode only with a tag (upstream contract); compare tagged bytes and sizes.
     byte[] ourTagged;
@@ -299,10 +299,10 @@ public class ProtoAdapterParityTest {
       ours.encodeWithTag(new ProtoWriter(buffer), 1, value);
       ourTagged = buffer.readByteArray();
     }
-    try (io.apicurio.antiwire.parity.okio.Buffer buffer =
-        new io.apicurio.antiwire.parity.okio.Buffer()) {
+    try (io.apitomy.antiwire.parity.okio.Buffer buffer =
+        new io.apitomy.antiwire.parity.okio.Buffer()) {
       theirs.encodeWithTag(
-          new io.apicurio.antiwire.parity.wire.ProtoWriter(buffer), 1, value);
+          new io.apitomy.antiwire.parity.wire.ProtoWriter(buffer), 1, value);
       theirTagged = buffer.readByteArray();
     }
     assertArrayEquals("MAP tagged bytes", theirTagged, ourTagged);
@@ -316,19 +316,19 @@ public class ProtoAdapterParityTest {
     byte[] entryBytes = entry.readByteArray();
     assertEquals(Collections.singletonMap("a", 1), ours.decode(entryBytes));
     assertEquals(Collections.singletonMap("a", 1),
-        theirs.decode(io.apicurio.antiwire.parity.okio.ByteString.of(entryBytes)));
+        theirs.decode(io.apitomy.antiwire.parity.okio.ByteString.of(entryBytes)));
   }
 
   @Test public void packedAndRepeatedAdapters() throws IOException {
     List<Integer> value = Arrays.asList(1, -1, 0, 150, Integer.MAX_VALUE, Integer.MIN_VALUE);
     ProtoAdapter<List<Integer>> ourPacked = ProtoAdapter.INT32.asPacked();
     ProtoAdapter<List<Integer>> ourRepeated = ProtoAdapter.INT32.asRepeated();
-    io.apicurio.antiwire.parity.wire.ProtoAdapter<List<Integer>> theirPacked =
-        (io.apicurio.antiwire.parity.wire.ProtoAdapter<List<Integer>>)
-            (io.apicurio.antiwire.parity.wire.ProtoAdapter<?>) p.INT32.asPacked();
-    io.apicurio.antiwire.parity.wire.ProtoAdapter<List<Integer>> theirRepeated =
-        (io.apicurio.antiwire.parity.wire.ProtoAdapter<List<Integer>>)
-            (io.apicurio.antiwire.parity.wire.ProtoAdapter<?>) p.INT32.asRepeated();
+    io.apitomy.antiwire.parity.wire.ProtoAdapter<List<Integer>> theirPacked =
+        (io.apitomy.antiwire.parity.wire.ProtoAdapter<List<Integer>>)
+            (io.apitomy.antiwire.parity.wire.ProtoAdapter<?>) p.INT32.asPacked();
+    io.apitomy.antiwire.parity.wire.ProtoAdapter<List<Integer>> theirRepeated =
+        (io.apitomy.antiwire.parity.wire.ProtoAdapter<List<Integer>>)
+            (io.apitomy.antiwire.parity.wire.ProtoAdapter<?>) p.INT32.asRepeated();
     // Packed and repeated encode only with a tag; their decode returns single-element lists
     // by upstream contract (the caller merges), so bare decode compares those singletons.
     byte[] ourPackedTagged;
@@ -337,10 +337,10 @@ public class ProtoAdapterParityTest {
       ourPackedTagged = buffer.readByteArray();
     }
     byte[] theirPackedTagged;
-    try (io.apicurio.antiwire.parity.okio.Buffer buffer =
-        new io.apicurio.antiwire.parity.okio.Buffer()) {
+    try (io.apitomy.antiwire.parity.okio.Buffer buffer =
+        new io.apitomy.antiwire.parity.okio.Buffer()) {
       theirPacked.encodeWithTag(
-          new io.apicurio.antiwire.parity.wire.ProtoWriter(buffer), 1, value);
+          new io.apitomy.antiwire.parity.wire.ProtoWriter(buffer), 1, value);
       theirPackedTagged = buffer.readByteArray();
     }
     assertArrayEquals("PACKED tagged bytes", theirPackedTagged, ourPackedTagged);
@@ -356,11 +356,11 @@ public class ProtoAdapterParityTest {
     assertEquals(Collections.singletonList(value.get(0)), ourPacked.decode(elementBytes));
     assertEquals(Collections.singletonList(value.get(0)),
         theirPacked.decode(
-            io.apicurio.antiwire.parity.okio.ByteString.of(elementBytes)));
+            io.apitomy.antiwire.parity.okio.ByteString.of(elementBytes)));
     assertEquals(Collections.singletonList(value.get(0)), ourRepeated.decode(elementBytes));
     assertEquals(Collections.singletonList(value.get(0)),
         theirRepeated.decode(
-            io.apicurio.antiwire.parity.okio.ByteString.of(elementBytes)));
+            io.apitomy.antiwire.parity.okio.ByteString.of(elementBytes)));
     // Packed and repeated are different wire forms (one length-delimited blob versus one tag
     // per element); both merge to the same list, which the element-level decodes above cover.
   }
@@ -373,7 +373,7 @@ public class ProtoAdapterParityTest {
     // Array adapters decode a single element like packed adapters (upstream contract).
     assertArrayEquals(new int[] {1}, ProtoAdapter.INT32_ARRAY.decode(ours));
     assertArrayEquals(new int[] {1},
-        p.INT32_ARRAY.decode(io.apicurio.antiwire.parity.okio.ByteString.of(ours)));
+        p.INT32_ARRAY.decode(io.apitomy.antiwire.parity.okio.ByteString.of(ours)));
 
     long[] longs = {0L, -1L, Long.MAX_VALUE};
     assertArrayEquals(p.INT64_ARRAY.encode(longs), ProtoAdapter.INT64_ARRAY.encode(longs));
@@ -414,72 +414,72 @@ public class ProtoAdapterParityTest {
   }
 
   private static final class p {
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Integer> INT32 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.INT32;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Integer> UINT32 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.UINT32;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Integer> SINT32 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.SINT32;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Integer> FIXED32 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.FIXED32;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Integer> SFIXED32 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.SFIXED32;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Long> INT64 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.INT64;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Long> UINT64 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.UINT64;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Long> SINT64 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.SINT64;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Long> FIXED64 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.FIXED64;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Long> SFIXED64 =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.SFIXED64;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Boolean> BOOL =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.BOOL;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Double> DOUBLE =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.DOUBLE;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Float> FLOAT =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.FLOAT;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<String> STRING =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.STRING;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<io.apicurio.antiwire.parity.okio.ByteString> BYTES =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.BYTES;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<java.time.Duration> DURATION =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.DURATION;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<java.time.Instant> INSTANT =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.INSTANT;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<io.apicurio.antiwire.parity.wire.FieldMask> FIELD_MASK =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.FIELD_MASK;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Integer> INT32 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.INT32;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Integer> UINT32 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.UINT32;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Integer> SINT32 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.SINT32;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Integer> FIXED32 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.FIXED32;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Integer> SFIXED32 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.SFIXED32;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Long> INT64 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.INT64;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Long> UINT64 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.UINT64;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Long> SINT64 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.SINT64;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Long> FIXED64 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.FIXED64;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Long> SFIXED64 =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.SFIXED64;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Boolean> BOOL =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.BOOL;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Double> DOUBLE =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.DOUBLE;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Float> FLOAT =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.FLOAT;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<String> STRING =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.STRING;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<io.apitomy.antiwire.parity.okio.ByteString> BYTES =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.BYTES;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<java.time.Duration> DURATION =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.DURATION;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<java.time.Instant> INSTANT =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.INSTANT;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<io.apitomy.antiwire.parity.wire.FieldMask> FIELD_MASK =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.FIELD_MASK;
     @SuppressWarnings("unchecked")
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Object> STRUCT_MAP =
-        (io.apicurio.antiwire.parity.wire.ProtoAdapter<Object>)
-            (io.apicurio.antiwire.parity.wire.ProtoAdapter<?>)
-                io.apicurio.antiwire.parity.wire.ProtoAdapter.STRUCT_MAP;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Object> STRUCT_MAP =
+        (io.apitomy.antiwire.parity.wire.ProtoAdapter<Object>)
+            (io.apitomy.antiwire.parity.wire.ProtoAdapter<?>)
+                io.apitomy.antiwire.parity.wire.ProtoAdapter.STRUCT_MAP;
     @SuppressWarnings("unchecked")
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Object> STRUCT_LIST =
-        (io.apicurio.antiwire.parity.wire.ProtoAdapter<Object>)
-            (io.apicurio.antiwire.parity.wire.ProtoAdapter<?>)
-                io.apicurio.antiwire.parity.wire.ProtoAdapter.STRUCT_LIST;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Object> STRUCT_LIST =
+        (io.apitomy.antiwire.parity.wire.ProtoAdapter<Object>)
+            (io.apitomy.antiwire.parity.wire.ProtoAdapter<?>)
+                io.apitomy.antiwire.parity.wire.ProtoAdapter.STRUCT_LIST;
     @SuppressWarnings("unchecked")
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Object> STRUCT_VALUE =
-        (io.apicurio.antiwire.parity.wire.ProtoAdapter<Object>)
-            (io.apicurio.antiwire.parity.wire.ProtoAdapter<?>)
-                io.apicurio.antiwire.parity.wire.ProtoAdapter.STRUCT_VALUE;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Double> DOUBLE_VALUE =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.DOUBLE_VALUE;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Integer> INT32_VALUE =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.INT32_VALUE;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<String> STRING_VALUE =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.STRING_VALUE;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<Boolean> BOOL_VALUE =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.BOOL_VALUE;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<int[]> INT32_ARRAY =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.INT32_ARRAY;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<long[]> INT64_ARRAY =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.INT64_ARRAY;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<double[]> DOUBLE_ARRAY =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.DOUBLE_ARRAY;
-    private static final io.apicurio.antiwire.parity.wire.ProtoAdapter<float[]> FLOAT_ARRAY =
-        io.apicurio.antiwire.parity.wire.ProtoAdapter.FLOAT_ARRAY;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Object> STRUCT_VALUE =
+        (io.apitomy.antiwire.parity.wire.ProtoAdapter<Object>)
+            (io.apitomy.antiwire.parity.wire.ProtoAdapter<?>)
+                io.apitomy.antiwire.parity.wire.ProtoAdapter.STRUCT_VALUE;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Double> DOUBLE_VALUE =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.DOUBLE_VALUE;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Integer> INT32_VALUE =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.INT32_VALUE;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<String> STRING_VALUE =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.STRING_VALUE;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<Boolean> BOOL_VALUE =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.BOOL_VALUE;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<int[]> INT32_ARRAY =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.INT32_ARRAY;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<long[]> INT64_ARRAY =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.INT64_ARRAY;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<double[]> DOUBLE_ARRAY =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.DOUBLE_ARRAY;
+    private static final io.apitomy.antiwire.parity.wire.ProtoAdapter<float[]> FLOAT_ARRAY =
+        io.apitomy.antiwire.parity.wire.ProtoAdapter.FLOAT_ARRAY;
   }
 }

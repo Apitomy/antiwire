@@ -6,6 +6,8 @@ every size labeled "bytes" is a decimal byte count exactly as reported by `stat 
 every size labeled "MiB" is bytes divided by 1,048,576, rounded to three decimals. The two
 are never mixed in one figure.
 
+> Coordinate note (2026-11-03): the groupId became `io.apitomy` (DEC-19) after the measurements below; the recorded paths and whole-jar checksums carry the `io.apicurio` coordinates of their time (checksums embed the META-INF/maven path), and are re-issued by the already-required remeasurement (TASK-21).
+
 ## 0. Measured candidate identity (AC#4)
 
 | Item | Value |

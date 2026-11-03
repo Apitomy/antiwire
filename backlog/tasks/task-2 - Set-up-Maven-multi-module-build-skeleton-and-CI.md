@@ -39,6 +39,7 @@ Implementation delegated to a subagent; simplify and code-review findings fixed 
 CI evidence recorded post-completion: run 36664501304 on Apicurio/antiwire (commit 2a60bed) completed with success in 59s, verifying AC#5's CI execution empirically. Process note: AC#5 was checked minutes before that run finished; the success evidence closes the gap, and future AC checks wait for the named evidence before being marked.
 
 2026-10-06 update: the placeholder groupId noted in the Final Summary is superseded. io.apicurio is the final namespace (DEC-8, authorized by the maintainer on 2026-10-02 and reconfirmed on 2026-10-06); publication stays gated by TASK-21 AC#1 and maven.deploy.skip. The Final Summary above records the state on 2026-09-30.
+2026-11-03 correction: io.apicurio is itself superseded by DEC-19; the namespace is io.apitomy and the repository moved to the Apitomy organization. See docs/decisions.md.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

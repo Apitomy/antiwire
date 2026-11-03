@@ -86,8 +86,9 @@ The Apicurio integration branch (`/tmp/apicurio`, branch `antiwire-integration`,
 already consumes the port in the modules a Kafka-facing story would build on:
 
 - `serdes/generic/serde-common-protobuf/pom.xml` depends on `io.apicurio:wire-schema-java`
-  (the port; Java package names stay `com.squareup.wire.*` per DEC-8, which changed Maven
-  coordinates only). `ProtobufSchemaParser.parseSchema`
+  (the port as the branch has it; Java package names stay `com.squareup.wire.*`, and DEC-8
+  changed Maven coordinates only. antiwire's coordinates are `io.apitomy` since DEC-19,
+  2026-11-03, so the branch must be re-pointed when it is revalidated). `ProtobufSchemaParser.parseSchema`
   (`src/main/java/io/apicurio/registry/serde/protobuf/ProtobufSchemaParser.java` line 46)
   parses raw `.proto` text dynamically with `ProtoParser.parse(...)`, resolves references into
   a dependency map, and falls back to binary `FileDescriptorProto` parsing when text parsing
@@ -135,7 +136,7 @@ one concrete Kafka-shaped demonstration for its adoption record.
 **Target module.** A new optional example module in this repository (proposed name
 `wire-kafka-example`), modeled on how `wire-java-generator` is optional: it changes nothing in
 the released artifact set or the port's dependency policy (DEC-4), because example modules are
-not production artifacts. It would depend on `io.apicurio:wire-schema-java`,
+not production artifacts. It would depend on `io.apitomy:wire-schema-java`,
 `com.google.protobuf:protobuf-java`, `org.apache.kafka:kafka-clients`, and, for descriptor
 conversion, `io.apicurio:apicurio-registry-protobuf-schema-utilities` installed locally from
 the Apicurio branch at `97f1b06` (reusing the already-migrated conversion rather than writing
@@ -285,7 +286,7 @@ filled only with measured results.
 
 1. **Motivation.** Why a pure-Java Wire exists: schema-heavy Kafka and Apicurio work without a
    Kotlin toolchain or Kotlin-backed transitive dependencies; minimal footprint; Apache 2.0.
-2. **The port in one page.** Coordinates `io.apicurio` (DEC-8); modules wire-runtime-java,
+2. **The port in one page.** Coordinates `io.apitomy` (DEC-19; `io.apicurio` before it, DEC-8); modules wire-runtime-java,
    wire-schema-java, optional wire-java-generator; Java 11 bytecode built on JDK 17+; source
    and functional compatibility contract per DEC-2.
 3. **Measured results.** [PLACEHOLDER: encoding and decoding benchmarks versus upstream Wire

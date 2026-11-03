@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>io.apicurio</groupId>
+    <groupId>io.apitomy</groupId>
     <artifactId>antiwire-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
   </parent>
@@ -15,8 +15,8 @@
   <name>antiwire upstream wire-runtime (relocated, test fixture)</name>
   <description>
     Test fixture only, never published: upstream com.squareup.wire:wire-runtime-jvm 7.1.0 with
-    com.squareup.wire relocated to io.apicurio.antiwire.parity.wire and okio relocated to
-    io.apicurio.antiwire.parity.okio, so the port's tests can run both implementations side by
+    com.squareup.wire relocated to io.apitomy.antiwire.parity.wire and okio relocated to
+    io.apitomy.antiwire.parity.okio, so the port's tests can run both implementations side by
     side on one classpath and assert byte-for-byte and exception-for-exception parity. The
     relocated jar exists only from the package phase on, so downstream parity tests require
     mvn verify, not mvn test.
@@ -63,11 +63,11 @@
               <relocations>
                 <relocation>
                   <pattern>com.squareup.wire</pattern>
-                  <shadedPattern>io.apicurio.antiwire.parity.wire</shadedPattern>
+                  <shadedPattern>io.apitomy.antiwire.parity.wire</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>okio</pattern>
-                  <shadedPattern>io.apicurio.antiwire.parity.okio</shadedPattern>
+                  <shadedPattern>io.apitomy.antiwire.parity.okio</shadedPattern>
                 </relocation>
               </relocations>
               <filters>
