@@ -2,18 +2,18 @@ package com.squareup.wire;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.squareup.wire.testing.TestFiles;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.MethodOrderer;
@@ -42,11 +42,14 @@ class DualRunIdentityTest {
   /** (half|path|op) keys observed this run; feeds the stale-row census. */
   static final Set<String> OBSERVED = new LinkedHashSet<>();
 
+  static List<CorpusFile> corpusCache;
+
+  /** Corpus file -> its root, filled once by corpus() (enumerate-once invariant). */
+  static final Map<CorpusFile, Path> ROOTS = new java.util.LinkedHashMap<>();
+
   /** Enumerates config/dual-run-corpus.tsv roots over both pinned clones, ONCE per run
    *  into the shared list both sides consume (enumerate-once invariant). Clone absent
    *  -> IllegalStateException, never a skip. */
-  static List<CorpusFile> corpusCache;
-
   static synchronized List<CorpusFile> corpus() {
     if (corpusCache != null) {
       return corpusCache;
@@ -67,23 +70,21 @@ class DualRunIdentityTest {
           first = false;
           continue;
         }
-        Path clone = fields[0].equals("upstream") ? upstreamClone() : apicurioClone();
+        Path clone = fields[0].equals("upstream") ? TestFiles.upstreamClone() : apicurioClone();
         Path root = clone.resolve(fields[1]);
         if (!Files.isDirectory(root)) {
           throw new IllegalStateException("corpus root missing in " + fields[0] + " clone: " + root);
         }
-        try (Stream<Path> walk = Files.walk(root)) {
-          walk.filter(p -> p.getFileName().toString().endsWith(".proto"))
-              .map(root::relativize)
-              .map(p -> p.toString().replace('\\', '/'))
-              .sorted()
-              .forEach(p -> {
-                CorpusFile corpusFile = new CorpusFile(fields[0], p);
-                files.add(corpusFile);
-                ROOTS.put(corpusFile, root);
-              });
-        } catch (IOException e) {
-          throw new IllegalStateException("cannot walk corpus root " + root, e);
+        // TestFiles.findFiles is upstream wire-test-utils' recursive walker; the .proto
+        // filter and the deterministic sort sit on top of it.
+        for (String relative : TestFiles.findFiles(root)
+            .stream()
+            .filter(p -> p.endsWith(".proto"))
+            .sorted()
+            .collect(java.util.stream.Collectors.toList())) {
+          CorpusFile corpusFile = new CorpusFile(fields[0], relative);
+          files.add(corpusFile);
+          ROOTS.put(corpusFile, root);
         }
       }
     } catch (IOException e) {
@@ -142,46 +143,23 @@ class DualRunIdentityTest {
   }
 
   // ---- the five named assert methods ----
-  // Each consults the ledger for its own (half, path, op) row; a covered divergence
-  // becomes a narrowed assertion (shapes must equal the row exactly), an uncovered one
-  // throws with the exact TSV row to record.
+  // Each consults the ledger for its own (half, path, op) row through
+  // assertNarrowedOrDiverge; a covered divergence becomes a narrowed assertion (shapes
+  // must equal the row exactly), an uncovered one throws with the exact TSV row to record.
 
   static void assertOutcomeKind(CorpusFile f, DualRunOutput p, DualRunOutput u) {
-    String op = "load-outcome";
-    if (p.kind == u.kind) {
-      OBSERVED.add(key(f, op));
-      return;
-    }
-    java.util.Optional<DualRunDivergences.DivergenceRow> row =
-        DualRunDivergences.match(f.half, f.relativePath, op);
-    if (row.isPresent()) {
-      assertEquals(row.get().portShape, p.shape(op), narrowLabel(f, op, "port"));
-      assertEquals(row.get().upstreamShape, u.shape(op), narrowLabel(f, op, "upstream"));
-      OBSERVED.add(key(f, op));
-    } else {
-      throw divergence(f, op, p, u);
-    }
+    assertNarrowedOrDiverge("load-outcome", f, p, u, p.kind == u.kind);
   }
 
   static void assertFailureChain(CorpusFile f, DualRunOutput p, DualRunOutput u) {
     String op = "failure-chain";
+    // Both sides must have thrown for a chain comparison; mixed outcomes are the
+    // load-outcome op and were already reported there.
     if (p.kind != DualRunOutput.Kind.THREW || u.kind != DualRunOutput.Kind.THREW) {
-      // Only a both-threw comparison reaches here; mixed outcomes are load-outcome's op.
       return;
     }
-    if (chainSignatures(p).equals(chainSignatures(u))) {
-      OBSERVED.add(key(f, op));
-      return;
-    }
-    java.util.Optional<DualRunDivergences.DivergenceRow> row =
-        DualRunDivergences.match(f.half, f.relativePath, op);
-    if (row.isPresent()) {
-      assertEquals(row.get().portShape, p.shape(op), narrowLabel(f, op, "port"));
-      assertEquals(row.get().upstreamShape, u.shape(op), narrowLabel(f, op, "upstream"));
-      OBSERVED.add(key(f, op));
-    } else {
-      throw divergence(f, op, p, u);
-    }
+    assertNarrowedOrDiverge(op, f, p, u,
+        p.shape(op).equals(u.shape(op)));
   }
 
   static void assertDescriptorBytes(CorpusFile f, DualRunOutput p, DualRunOutput u) {
@@ -191,19 +169,7 @@ class DualRunIdentityTest {
     }
     // RAW-BYTE, no UnwantedValueStripper: that stripper is the protoc oracle's
     // knowingly-lossy lens; Wire-vs-Wire needs none.
-    if (Arrays.equals(p.descriptorBytes, u.descriptorBytes)) {
-      OBSERVED.add(key(f, op));
-      return;
-    }
-    java.util.Optional<DualRunDivergences.DivergenceRow> row =
-        DualRunDivergences.match(f.half, f.relativePath, op);
-    if (row.isPresent()) {
-      assertEquals(row.get().portShape, p.shape(op), narrowLabel(f, op, "port"));
-      assertEquals(row.get().upstreamShape, u.shape(op), narrowLabel(f, op, "upstream"));
-      OBSERVED.add(key(f, op));
-    } else {
-      throw divergence(f, op, p, u);
-    }
+    assertNarrowedOrDiverge(op, f, p, u, Arrays.equals(p.descriptorBytes, u.descriptorBytes));
   }
 
   static void assertCanonicalText(CorpusFile f, DualRunOutput p, DualRunOutput u) {
@@ -211,19 +177,7 @@ class DualRunIdentityTest {
     if (p.kind != DualRunOutput.Kind.LOADED || u.kind != DualRunOutput.Kind.LOADED) {
       return;
     }
-    if (p.canonicalText.equals(u.canonicalText)) {
-      OBSERVED.add(key(f, op));
-      return;
-    }
-    java.util.Optional<DualRunDivergences.DivergenceRow> row =
-        DualRunDivergences.match(f.half, f.relativePath, op);
-    if (row.isPresent()) {
-      assertEquals(row.get().portShape, p.shape(op), narrowLabel(f, op, "port"));
-      assertEquals(row.get().upstreamShape, u.shape(op), narrowLabel(f, op, "upstream"));
-      OBSERVED.add(key(f, op));
-    } else {
-      throw divergence(f, op, p, u);
-    }
+    assertNarrowedOrDiverge(op, f, p, u, p.canonicalText.equals(u.canonicalText));
   }
 
   /**
@@ -257,10 +211,29 @@ class DualRunIdentityTest {
                 + " " + port.owner);
       }
     }
-    OBSERVED.add(key(f, op));
+    OBSERVED.add(DualRunDivergences.key(f.half, f.relativePath, op));
   }
 
   // ---- helpers ----
+
+  /** The shared ledger consultation: equal passes and is recorded, a covered divergence
+   *  is narrowed to the row's exact shapes (recorded), an uncovered one throws the row. */
+  static void assertNarrowedOrDiverge(String op, CorpusFile f, DualRunOutput p,
+      DualRunOutput u, boolean equal) {
+    if (equal) {
+      OBSERVED.add(DualRunDivergences.key(f.half, f.relativePath, op));
+      return;
+    }
+    java.util.Optional<DualRunDivergences.DivergenceRow> row =
+        DualRunDivergences.match(f.half, f.relativePath, op);
+    if (row.isPresent()) {
+      assertEquals(row.get().portShape, p.shape(op), narrowLabel(f, op, "port"));
+      assertEquals(row.get().upstreamShape, u.shape(op), narrowLabel(f, op, "upstream"));
+      OBSERVED.add(DualRunDivergences.key(f.half, f.relativePath, op));
+    } else {
+      throw divergence(f, op, p, u);
+    }
+  }
 
   static void assertBoundsEqual(RangeProbe port, RangeProbe upstream, CorpusFile f,
       String owner) {
@@ -275,26 +248,17 @@ class DualRunIdentityTest {
     }
   }
 
-  static String chainSignatures(DualRunOutput output) {
-    // OutcomeSignature rule: root cause simple name + first message line on both sides;
-    // built in ChainEntry, joined here.
-    StringBuilder sb = new StringBuilder();
-    for (ChainEntry entry : output.failureChain) {
-      if (sb.length() > 0) sb.append("<<");
-      sb.append(entry.className).append("|").append(entry.message);
-    }
-    return sb.toString();
-  }
-
   static AssertionError divergence(CorpusFile f, String op, DualRunOutput p, DualRunOutput u) {
+    String portShape = p.shape(op);
+    String upstreamShape = u.shape(op);
     return new AssertionError("DUAL-RUN DIVERGENCE [" + f.half + "|" + f.relativePath
         + "] op=" + op
-        + " port=" + p.shape(op)
-        + " upstream=" + u.shape(op)
+        + " port=" + portShape
+        + " upstream=" + upstreamShape
         + " : record this row in config/dual-run-divergences.tsv (with a reason and a"
         + " docs/compatibility-matrix.md anchor):\n"
-        + f.half + "\t" + f.relativePath + "\t" + op + "\t" + p.shape(op) + "\t"
-        + u.shape(op) + "\tTODO-reason\tdocs/compatibility-matrix.md: TODO-anchor");
+        + f.half + "\t" + f.relativePath + "\t" + op + "\t" + portShape + "\t"
+        + upstreamShape + "\tTODO-reason\tdocs/compatibility-matrix.md: TODO-anchor");
   }
 
   static String narrowLabel(CorpusFile f, String op, String side) {
@@ -307,16 +271,9 @@ class DualRunIdentityTest {
         row.reason, row.docRef);
   }
 
-  static String key(CorpusFile f, String op) {
-    return f.half + "|" + f.relativePath + "|" + op;
-  }
-
   static Path repoRoot() {
     return DualRunDivergences.repoRoot();
   }
-
-  /** Corpus file -> its root, filled once by corpus() (enumerate-once invariant). */
-  static final java.util.Map<CorpusFile, Path> ROOTS = new java.util.LinkedHashMap<>();
 
   static Path corpusRoot(CorpusFile file) {
     Path root = ROOTS.get(file);
@@ -326,19 +283,10 @@ class DualRunIdentityTest {
     return root;
   }
 
-  static Path upstreamClone() {
-    String clone = System.getenv("ANTIWIRE_UPSTREAM");
-    Path path = Paths.get(clone == null || clone.isEmpty() ? "/tmp/wire" : clone);
-    if (!Files.isDirectory(path)) {
-      throw new IllegalStateException(
-          "pinned upstream clone not found at " + path + "; run scripts/fetch-upstream.sh");
-    }
-    return path;
-  }
-
   static Path apicurioClone() {
     String clone = System.getenv("ANTIWIRE_APICURIO");
-    Path path = Paths.get(clone == null || clone.isEmpty() ? "/tmp/apicurio-registry" : clone);
+    Path path = java.nio.file.Paths.get(
+        clone == null || clone.isEmpty() ? "/tmp/apicurio-registry" : clone);
     if (!Files.isDirectory(path)) {
       throw new IllegalStateException(
           "pinned apicurio clone not found at " + path + "; run scripts/fetch-apicurio.sh");

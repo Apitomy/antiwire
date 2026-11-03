@@ -28,7 +28,6 @@ if [ "${1:-}" = "--update" ]; then
   UPDATE=1
 fi
 
-for clone_var in ANTIWIRE_UPSTREAM ANTIWIRE_APICURIO; do :; done
 # Corpus size per half, enumerated from the TSV over the clones the harness itself uses.
 corpus_counts() {
   python3 - "$ROOT/config/dual-run-corpus.tsv" <<'PY'
@@ -160,10 +159,7 @@ if update == "1":
 PY
 )" || { echo "RESULT dual-run-identity.status=FAIL"; echo "RESULT dual-run-identity.note=the surefire report or the divergence ledger could not be parsed"; exit "$EXIT_FAIL"; }
 
-tests=$(printf '%s\n' "$verdict" | head -n 1 | awk '{print $1}')
-invocations=$(printf '%s\n' "$verdict" | head -n 1 | awk '{print $2}')
-bad=$(printf '%s\n' "$verdict" | head -n 1 | awk '{print $3}')
-nproblems=$(printf '%s\n' "$verdict" | head -n 1 | awk '{print $4}')
+read -r tests invocations bad nproblems _ <<<"$(printf '%s\n' "$verdict" | head -n 1)"
 printf '%s\n' "$verdict" | grep '^PROBLEM ' | sed 's/^PROBLEM //'
 corpus_total=$((upstream_count + apicurio_count))
 

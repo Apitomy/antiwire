@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,8 +45,13 @@ final class DualRunDivergences {
     }
 
     String key() {
-      return half + "|" + path + "|" + op;
+      return DualRunDivergences.key(half, path, op);
     }
+  }
+
+  /** The single ledger key format; a drift here breaks the stale-row census silently. */
+  static String key(String half, String path, String op) {
+    return half + "|" + path + "|" + op;
   }
 
   private static Map<String, DivergenceRow> rows;
@@ -58,7 +64,7 @@ final class DualRunDivergences {
     if (rows == null) {
       rows = load();
     }
-    return Optional.ofNullable(rows.get(half + "|" + path + "|" + op));
+    return Optional.ofNullable(rows.get(key(half, path, op)));
   }
 
   /** All committed rows, for the stale-row census. */
@@ -84,9 +90,9 @@ final class DualRunDivergences {
       String[] fields = line.split("\t", -1);
       if (first) {
         first = false;
-        if (!String.join("\t", fields).equals(String.join("\t", HEADER))) {
+        if (!Arrays.equals(fields, HEADER)) {
           throw new IllegalStateException("divergence ledger header mismatch in " + ledger
-              + ": expected " + String.join("\\t", HEADER));
+              + ": expected " + String.join("<TAB>", HEADER));
         }
         continue;
       }

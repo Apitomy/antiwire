@@ -130,24 +130,23 @@ final class PortSide implements SchemaSide {
     byte[] descriptorBytes = new com.squareup.wire.schema.internal.SchemaEncoder(schema)
         .encode(protoFile).toByteArray();
     return DualRunOutput.loaded(descriptorBytes, protoFile.toSchema(),
-        RangeProbes.collect(treeOf(protoFile, protoFile.getTypes())));
+        RangeProbes.collect(treeOf(protoFile.getTypes())));
   }
 
   private static List<RangeProbes.TypeTree> treeOf(
-      com.squareup.wire.schema.ProtoFile protoFile, List<com.squareup.wire.schema.Type> types) {
+      List<com.squareup.wire.schema.Type> types) {
     List<RangeProbes.TypeTree> trees = new ArrayList<>();
     for (com.squareup.wire.schema.Type type : types) {
-      trees.add(nodeOf(protoFile, type));
+      trees.add(nodeOf(type));
     }
     return trees;
   }
 
-  private static RangeProbes.TypeTree nodeOf(
-      com.squareup.wire.schema.ProtoFile protoFile, com.squareup.wire.schema.Type type) {
+  private static RangeProbes.TypeTree nodeOf(com.squareup.wire.schema.Type type) {
     final com.squareup.wire.schema.Type theType = type;
     final List<RangeProbes.TypeTree> nested =
         type instanceof com.squareup.wire.schema.MessageType
-            ? treeOf(protoFile, ((com.squareup.wire.schema.MessageType) type).getNestedTypes())
+            ? treeOf(((com.squareup.wire.schema.MessageType) type).getNestedTypes())
             : Collections.<RangeProbes.TypeTree>emptyList();
     return new RangeProbes.TypeTree() {
       @Override public String qualifiedName() {
