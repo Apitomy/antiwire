@@ -26,14 +26,13 @@ check_modules_consistency
 
 REPORT="$ROOT/wire-protoc-compat-java/target/surefire-reports/TEST-com.squareup.wire.DualRunIdentityTest.xml"
 # Corpus floors are MARGINS below the measured corpus (150/40 vs measured 171/42), so a
-# smaller-but-real corpus keeps passing; both-LOADED coverage floors are exact measurements
-# (141/31), so any coverage regression fails. Both groups (files per half
-# that both sides loaded through the staged roots), all measured over the pinned corpora
-# (wire 9f62097dfe4995b5709d001ca0187e30ca0530ef, apicurio
-# 23a09ab4e128e8a308efbcc333c5318734126b55) on 2026-11-03: exact measurements, not margins.
+# smaller-but-real corpus keeps passing. Both-LOADED coverage floors are exact measurements
+# (142/31, measured 2026-11-04 after the TASK-40 fix over the pinned corpora: wire
+# 9f62097dfe4995b5709d001ca0187e30ca0530ef, apicurio 23a09ab4e128e8a308efbcc333c5318734126b55),
+# so any coverage regression fails.
 MIN_CORPUS_UPSTREAM=150
 MIN_CORPUS_APICURIO=40
-MIN_LOADED_UPSTREAM=141
+MIN_LOADED_UPSTREAM=142
 MIN_LOADED_APICURIO=31
 UPDATE=0
 if [ "${1:-}" = "--update" ]; then

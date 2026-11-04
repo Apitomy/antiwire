@@ -15,6 +15,7 @@
  */
 package com.squareup.wire.schema.internal;
 
+import com.squareup.wire.Bytes;
 import com.squareup.wire.FieldEncoding;
 import com.squareup.wire.ProtoAdapter;
 import com.squareup.wire.ProtoReader;
@@ -523,14 +524,17 @@ public final class SchemaEncoder {
   }
 
   /**
-   * Convert {@code value} to a untyped value that preserves its binary encoding. This converts
+   * Convert {@code value} to a runtime-typed value that preserves its binary encoding. This converts
    * strings to the right-sized primitive type. This converts unsigned values to the signed value
    * that has the same binary encoding.
    */
   private Object toJsonSingle(ProtoType type, Object value) {
     if (type.equals(ProtoType.BOOL)) return Boolean.parseBoolean((String) value);
     if (type.equals(ProtoType.BYTES)) {
-      return ByteString.encodeUtf8((String) value);
+      // The options adapters are DEC-14 Bytes-typed (SchemaProtoAdapterFactory maps
+      // ProtoType.BYTES to WIRE_BYTES), so the value must cross that boundary as Bytes;
+      // upstream hands the adapter an okio ByteString, which the port's adapter rejects.
+      return Bytes.encodeUtf8((String) value);
     }
     if (type.equals(ProtoType.DOUBLE)) return Double.parseDouble((String) value);
     if (type.equals(ProtoType.FIXED32)) return parseUnsignedInt((String) value);

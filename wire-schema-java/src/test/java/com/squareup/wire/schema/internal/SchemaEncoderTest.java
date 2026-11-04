@@ -15,6 +15,7 @@
  */
 package com.squareup.wire.schema.internal;
 
+import com.squareup.wire.Bytes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -104,6 +105,32 @@ public class SchemaEncoderTest {
     assertEquals("emails", emails.get("name"));
     assertEquals(3, emails.get("number"));
     assertEquals("LABEL_REPEATED", emails.get("label"));
+  }
+
+  /**
+   * TASK-40 regression: a bytes-valued custom option used to reach the DEC-14 Bytes-typed
+   * options adapter as an engine-layer okio.ByteString and throw ClassCastException at
+   * WireBytesAdapter.encode. The option value must encode and round-trip as Bytes.
+   */
+  @Test public void encodesBytesValuedCustomOption() throws Exception {
+    Schema schema = loadSchema("bytes_options.proto", ""
+        + "syntax = \"proto2\";\n"
+        + "package pkg;\n"
+        + "import \"google/protobuf/descriptor.proto\";\n"
+        + "extend google.protobuf.FileOptions {\n"
+        + "  optional bytes file_bytes = 50001;\n"
+        + "}\n"
+        + "option (file_bytes) = \"task-40 bytes option value\";\n"
+        + "message Msg { optional string name = 1; }\n");
+    ProtoFile protoFile = schema.protoFile("bytes_options.proto");
+
+    SchemaEncoder encoder = new SchemaEncoder(schema);
+    ByteString encoded = encoder.encode(protoFile);
+
+    Map<String, Object> descriptor = decodeFileDescriptorProto(schema, encoded);
+    Map<String, Object> options = (Map<String, Object>) descriptor.get("options");
+    Object fileBytes = options.get("file_bytes");
+    assertEquals(Bytes.encodeUtf8("task-40 bytes option value"), fileBytes);
   }
 
   @Test public void encodesProto2DefaultsAndJsonName() throws Exception {

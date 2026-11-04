@@ -34,8 +34,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  * A difference with no row in config/dual-run-divergences.tsv fails with the row to
  * record; a committed row nothing observed, or whose doc_ref anchor is missing from the
  * cited doc, fails the census tests. Nothing is skipped and nothing is ignored. The
- * corpus census floors the per-half both-LOADED coverage (staged loading measured
- * 2026-11-03: upstream 141, apicurio 31) so a green run can never mean empty coverage.
+ * corpus census floors the per-half both-LOADED coverage (staged loading
+ * measured 2026-11-04 after the TASK-40 fix: upstream 142, apicurio 31) so a green run
+ * can never mean empty coverage.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DualRunIdentityTest {
@@ -50,11 +51,11 @@ class DualRunIdentityTest {
    *  same instances to the parameterized test and this census, so identity keys work. */
   static final Map<CorpusFile, String> OUTCOMES = new LinkedHashMap<>();
 
-  /** Both-LOADED coverage floors per half, at the values measured on 2026-11-03 over the
-   *  pinned corpora (wire 9f62097dfe4995b5709d001ca0187e30ca0530ef, apicurio
-   *  23a09ab4e128e8a308efbcc333c5318734126b55) once package-mirroring staging landed:
-   *  exact measurements, not margins, so coverage can grow but never silently shrink. */
-  static final int MIN_BOTH_LOADED_UPSTREAM = 141;
+  /** Both-LOADED coverage floors per half, at the values measured on 2026-11-04 (after
+   *  the TASK-40 fix) over the pinned corpora (wire 9f62097dfe4995b5709d001ca0187e30ca0530ef,
+   *  apicurio 23a09ab4e128e8a308efbcc333c5318734126b55): exact measurements, not margins,
+   *  so coverage can grow but never silently shrink. */
+  static final int MIN_BOTH_LOADED_UPSTREAM = 142;
   static final int MIN_BOTH_LOADED_APICURIO = 31;
 
   static List<CorpusFile> corpusCache;
