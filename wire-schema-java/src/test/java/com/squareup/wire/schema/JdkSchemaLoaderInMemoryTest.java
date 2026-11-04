@@ -41,7 +41,7 @@ public class JdkSchemaLoaderInMemoryTest {
   private FileSystem fs;
 
   @BeforeEach public void setUp() {
-    fs = Jimfs.newFileSystem();
+    fs = Jimfs.newFileSystem(Configuration.unix());
   }
 
   @AfterEach public void tearDown() throws IOException {
