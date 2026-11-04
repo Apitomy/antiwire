@@ -19,6 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -98,28 +99,36 @@ public class JdkSchemaLoaderInMemoryTest {
   }
 
   /**
-   * Resolution follows the supplied filesystem's rules, not the host's, and this host can prove
-   * it. The wrong-case import fails on a case-sensitive Jimfs and loads on a case-insensitive
-   * one, while the host (Linux, case-sensitive) stays fixed: the opposite outcome per filesystem
-   * is only possible if the decision is made inside the supplied filesystem. This is the macOS
-   * APFS leak of the Apicurio migration made mechanical: staging into a host temp directory let
-   * the same wrong-case import resolve locally and fail on case-sensitive CI.
+   * Resolution follows the supplied filesystem's rules, not the host's. The same wrong-case
+   * import fails on a case-sensitive Jimfs and loads on a case-insensitive one: the opposite
+   * outcome per filesystem is only possible if the decision is made inside the supplied
+   * filesystem. This is the macOS APFS leak of the Apicurio migration made mechanical: staging
+   * into a host temp directory let the same wrong-case import resolve locally and fail on
+   * case-sensitive CI.
+   *
+   * <p>Both filesystems must be built from explicit configurations: the no-arg
+   * {@code Jimfs.newFileSystem()} derives its configuration from the current platform
+   * (jimfs 1.3.2 {@code Configuration.forCurrentPlatform()}, case-insensitive on macOS), so the
+   * case-sensitive half pins the unix configuration. Relying on the no-arg factory was this
+   * test's platform-dependent birth defect: it never passed on macOS.
    */
   @Test public void caseSensitivityComesFromTheSuppliedFileSystem() throws Exception {
-    writePet(fs, "/protos");
-    Path wrongCase = writeOwner(fs, "/protos", "com/example/cased/Pet.proto");
+    try (FileSystem caseSensitive = Jimfs.newFileSystem(Configuration.unix())) {
+      writePet(caseSensitive, "/protos");
+      Path wrongCase = writeOwner(caseSensitive, "/protos", "com/example/cased/Pet.proto");
 
-    try (JdkSchemaLoader loader = JdkSchemaLoader.forFileSystem(fs)) {
-      loader.initRoots(Collections.singletonList(wrongCase),
-          Collections.singletonList(fs.getPath("/protos")));
-      assertThrows(SchemaException.class, loader::loadSchema);
+      try (JdkSchemaLoader loader = JdkSchemaLoader.forFileSystem(caseSensitive)) {
+        loader.initRoots(Collections.singletonList(wrongCase),
+            Collections.singletonList(caseSensitive.getPath("/protos")));
+        assertThrows(SchemaException.class, loader::loadSchema);
+      }
     }
 
-    try (FileSystem macLike = Jimfs.newFileSystem(com.google.common.jimfs.Configuration.osX())) {
+    try (FileSystem macLike = Jimfs.newFileSystem(Configuration.osX())) {
       writePet(macLike, "/protos");
-      Path sameCase = writeOwner(macLike, "/protos", "com/example/cased/Pet.proto");
+      Path wrongCase = writeOwner(macLike, "/protos", "com/example/cased/Pet.proto");
       try (JdkSchemaLoader loader = JdkSchemaLoader.forFileSystem(macLike)) {
-        loader.initRoots(Collections.singletonList(sameCase),
+        loader.initRoots(Collections.singletonList(wrongCase),
             Collections.singletonList(macLike.getPath("/protos")));
         assertNotNull(loader.loadSchema().getType("com.example.cased.Owner"),
             "a case-insensitive supplied filesystem must resolve the wrong-case import");

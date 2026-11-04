@@ -5,14 +5,14 @@ title: >-
   finding)
 status: Done
 assignee: []
-created_date: '2026-11-03 21:37'
-updated_date: '2026-11-04 05:04'
+created_date: 2026-11-03 21:37
+updated_date: '2026-11-04T19:10:00Z'
 labels:
   - bug
   - harness-found
 dependencies: []
 references:
-  - 'https://github.com/Apitomy/antiwire/issues/9'
+  - https://github.com/Apitomy/antiwire/issues/9
 priority: high
 ---
 
@@ -34,6 +34,19 @@ Found by the TASK-39 dual-run harness on its first corpus run (2026-11-03), and 
 
 2026-11-04 closed. Root cause chain (causal-chain discipline): the throw site was WireBytesAdapter.encode (ProtoAdapter.java:1352); the discriminating observation was that the CCE fired at the ADAPTER, not at toJsonSingle's (String) cast, proving the option-value model is String on both sides and the parser/linker were tangential; the defect was the missing engine-to-DEC-14 conversion at the one producer boundary (SchemaEncoder.toJsonSingle), where every other scalar branch already converts. History note for the record: commit cd5a72c (TASK-39 closed) unintentionally also carries the seven dual-run review-fix files, because the review-fix commit failed silently on a broken git-add chain the evening before and the staged changes rode into the next commit; the content is correct and CI-verified, the message under-describes it. Surfaced to the maintainer rather than rewriting pushed history.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: perf session 6
+created: 2026-11-04T19:10:00Z
+
+---
+
+2026-11-04 (perf session 6): the "full battery 14/14" claim above is refuted. verify.sh at this task's candidate (9238a06) failed deterministically on JdkSchemaLoaderInMemoryTest: jimfs 1.3.2's no-arg Jimfs.newFileSystem() derives its configuration from the current platform (Configuration.forCurrentPlatform(), bytecode-verified) and is case-INsensitive on macOS, so the test's case-sensitive half could not pass on this machine at any commit since de61ab2. The loader under test was correct (an NIO-only probe with no antiwire code reproduced the resolution). Fixed the same day by pinning Configuration.unix() in that half (test scope only, main jars untouched); battery re-run green, all 14 ACTIVE suites passed. Any earlier battery claim after de61ab2 that included this test on this Mac could not have been green as recorded.
+
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 

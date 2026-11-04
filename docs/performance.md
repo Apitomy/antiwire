@@ -6,6 +6,11 @@
 
 > Coordinate note (2026-11-03): the groupId became `io.apitomy` (DEC-19) after the measurements below; the recorded paths and whole-jar checksums carry the `io.apicurio` coordinates of their time (checksums embed the META-INF/maven path), and are re-issued by the already-required remeasurement (TASK-21).
 
+> RENEWED (2026-11-04): session 6 (section 5) renews every cell of all three groups on
+> the final candidate `9238a06` under the `io.apitomy` coordinates, including the schema
+> and protobuf-java reference cells the two STALE notes above left open. The STALE notes
+> are historical; one finding (bytes decode) is pending the maintainer's record.
+
 
 Measured on 2026-10-02 in three sessions: 12:08-12:56 CEST (initial full matrix, 15 wire
 benchmarks), 13:36-13:50 CEST (decode re-measurement after the decode entry-point
@@ -713,6 +718,194 @@ document grants no acceptance. Any later change to `wire-runtime-java`,
 `wire-schema-java`, `wire-java-generator`, the oracle versions, or the harness workloads
 re-fires the invalidation rule.
 
+### Session 6 results (2026-11-04 19:03-19:50 CET, candidate `9238a06`, full-matrix renewal, `io.apitomy`)
+
+Why renewed: 106 commits separate this candidate from session 5's `82c3624`, dozens of
+them touching the measured modules (TASK-26 dynamic Empty, TASK-16.1/16.2 ProtoTarget,
+the TASK-33.x accessor alignment, TASK-39, TASK-40 bytes-option encoding, DEC-18
+snapshot publishing, DEC-19 the `io.apitomy` groupId move), so the invalidation rule
+fired and the STALE banners above required renewal on the final candidate before
+TASK-21. This session also renews the three schema cells and the eight protobuf-java
+reference cells, which had carried their session-1 numbers on superseded candidates
+since October (the session-3/4 limitation), so every cell of all three groups is
+measured on one candidate in one session for the first time since the initial matrix.
+
+Harness: rebuilt from this document after a `/tmp` purge removed the session-3/4/5
+harness and the corpus clones (the session-3 rebuild precedent). Recorded deviations:
+the port profile resolves `io.apitomy` coordinates (DEC-19); the corpus is the TASK-39
+pin clone at `23a09ab` (`scripts/fetch-apicurio.sh`; 20 protos, 26,088 bytes; the
+registry's history shows the corpus directory unchanged since 2025-07-14, so the pin
+carries byte-identical corpus files to every earlier session); the staged corpus keeps
+the clone's own flat relative layout, which session 6 proved is what the recorded
+descriptor output encodes, because package-derived staging renames every descriptor
+file (26,881 vs 25,971 B) while flat staging reproduces the session-1 descriptor bytes
+and the 47/53 counts exactly; the twelve JMH invocations run rep-major (for rep in 1, 2:
+for group in rt, sc, pb: upstream then port), keeping every upstream/port pair adjacent
+inside a repetition; and three fingerprints were re-issued (below).
+
+Identity block (AC#5):
+
+| Item | Value |
+|---|---|
+| antiwire revision | `9238a064fdf091d07f686f65705e888594e993cf` (branch `main`; `e94be29` TASK-40 plus the docs-only close `9238a06`; clean tree at the 07:13 CET install) |
+| Build | `JAVA_HOME=~/.sdkman/candidates/java/17.0.12-tem mvn clean install -DskipTests`, exit 0 (the measured jars were installed this morning by the interrupted session; verified, not rebuilt) |
+| `io.apitomy:wire-runtime-java:0.1.0-SNAPSHOT` SHA-256 | `7802e615acfc852de3867f121b679b5f2e8565a19cd8ba1078a49b21a612c51c` |
+| `io.apitomy:wire-schema-java:0.1.0-SNAPSHOT` SHA-256 | `3b091ed5b9f45034c086c39cfdb07b930ce14868bf52d4cb3ec084a5904485ce` |
+| `io.apitomy:wire-java-generator:0.1.0-SNAPSHOT` SHA-256 | `a91429eba93c70218259808c3a8bb23b7b6bdbea06248159a76a80093d729f56` |
+| Oracle | unchanged from sessions 1-5: the same five upstream 7.1.0-set jars, all five checksums re-verified against the section-0 record before the run |
+| Generated-model identity | both CLIs from the same protos; port RAW tree byte-identical to the mapped upstream tree over all 7 files (phase-2 mapping, `tools/map_bytes.py` mirroring `AllTypesGoldenBytesMappingTest`); per-file fingerprints in the harness's `results/gen-tree-fingerprints.txt` |
+| IdentityCheck | green under both classpaths, profile-diff clean; email `cc02806d...` 672 B and all_types `ba3c8a31...` 483 B match the doc exactly; packed, blob and the schema canonical text carry session-6 re-issued values (below); descriptor 25,971 B over 20 files and loaded/parsed 47/53 match the doc exactly |
+
+Fingerprint re-issues (the session-3 precedent for values the lost harness held): packed
+`d88b3b79...` (18,437 B) and blob `5e476832...` (17,472 B), because the element and
+chunk contents beyond the doc-pinned `rep_string` lengths and label were never recorded;
+sizes are exact, port equals upstream byte-for-byte, and to end the re-issue cycle the
+exact contents are now pinned here: PackedLists carries 256 elements in every list with
+element i = i for the integer lists (rep_int32, rep_int64, pack_int32, pack_sint32,
+pack_int64, pack_uint64, pack_fixed64), i * 0.5 for rep_double and pack_double, i * 0.5f
+for pack_float, bool = (i % 2 == 0), and `rep_string[i]` a run of 's' of length 28
+(i < 86) or 29 (i >= 86); Blob's head and all 16 chunks share one 1,024-byte pattern
+with pattern[i] = (byte) (i % 251), under the 11-char label `blob-label-`. Schema canonical text `9d2726ab...` (47 files, 154,885
+chars), because the session-1 value is not reproducible from recorded inputs: the corpus
+is pinned and unchanged, the google-dependency jars are SHA-1-verified against Central,
+the paths and semantics are proven identical by the exact descriptor reproduction, and
+the upstream oracle jar is unchanged, so the session-1 hash encoded the lost harness's
+own concatenation order. The re-issued value concatenates the 47 loaded files'
+`toSchema()` in `getProtoFiles()` order, which is path-sorted and rebuild-stable (the
+same hash comes back from a reverse-creation-order staged tree), and a per-file census
+(`results/schema-file-census-port.txt`, 47 rows) localizes any future drift to single
+files. No wire-format meaning changed: every fingerprint is diff-clean across profiles.
+
+Session-6 matrix, rt group (medians over all 40 iterations; range min-max over both
+repetitions; allocation is the `gc.alloc.rate.norm` median of rep 1; own bands from this
+session's phase 1, whose oracle was quieter than session 1's: global rt band ±20%):
+
+| Cell | upstream 7.1.0 ops/s median [min-max] | antiwire ops/s median [min-max] | ratio | alloc/op upstream / port (B) | own band |
+|---|---|---|---|---|---|
+| email encodeForward | 593,576 [581,100-603,605] | 1,323,071 [1,286,394-1,351,876] | **2.229** | 16 / 16 | ±5% |
+| email encodeReverse | 2,887,531 [2,490,118-3,115,485] | 2,900,182 [2,700,112-3,027,322] | 1.004 | 200 / 176 | ±20% |
+| email decode | 2,378,117 [2,201,316-2,531,753] | 2,157,422 [2,042,624-2,302,467] | 0.907 | 4,080 / 4,248 | ±10% |
+| all_types encodeForward | 914,670 [855,701-948,276] | 977,566 [928,051-1,041,212] | 1.069 | 16 / 16 | ±5% |
+| all_types encodeReverse | 1,293,285 [1,249,225-1,329,463] | 1,436,266 [1,397,963-1,485,210] | 1.111 | 200 / 176 | ±5% |
+| all_types decode | 516,907 [457,101-533,557] | 524,774 [499,350-536,604] | 1.015 | 8,184 / 8,944 | ±5% |
+| packed encodeForward | 39,333 [38,112-40,393] | 39,675 [37,919-41,170] | 1.009 | 16 / 16 | ±5% |
+| packed encodeReverse | 64,189 [62,992-65,663] | 63,080 [61,484-64,485] | 0.983 | 200 / 176 | ±5% |
+| packed decode | 25,844 [25,073-26,675] | 31,911 [30,888-32,638] | 1.235 | 116,192 / 116,456 | ±5% |
+| bytes encodeForward | 2,121,718 [2,003,078-2,212,437] | 2,073,492 [1,919,055-2,189,073] | 0.977 | 16 / 16 | ±10% |
+| bytes encodeReverse | 1,295,694 [1,164,622-1,460,649] | 1,292,039 [1,157,592-1,445,379] | 0.997 | 200 / 176 | ±10% |
+| bytes decode | 1,569,037 [1,382,048-1,774,022] | 1,258,733 [1,175,644-1,289,722] | 0.802 | 19,020 / 19,072 | ±15% |
+
+Mandate judgment: `EmailSearchBench.encodeForward` = 2.229 overall and 2.253 / 2.219 per
+repetition, each far above the required 0.95; the encode-forward mandate holds on the
+renewal candidate, fourth session running (2.245, 2.230, 2.235, 2.229).
+
+Session 6 vs session 5, per cell (port median move = session-6 port median divided by
+the session-5 record's; upstream median move likewise, as the environment-drift control):
+
+| Cell | s6 ratio | s5 ratio | port median move | upstream median move |
+|---|---|---|---|---|
+| email encodeForward | 2.229 | 2.235 | 0.991 | 0.994 |
+| email encodeReverse | 1.004 | 1.055 | 0.975 | 1.024 |
+| email decode | 0.907 | 0.967 | 0.972 | 1.037 |
+| all_types encodeForward | 1.069 | 1.122 | 0.984 | 1.033 |
+| all_types encodeReverse | 1.111 | 1.151 | 0.954 | 0.989 |
+| all_types decode | 1.015 | 1.005 | 1.002 | 0.992 |
+| packed encodeForward | 1.009 | 0.965 | 0.985 | 0.942 |
+| packed encodeReverse | 0.983 | 1.009 | 0.937 | 0.962 |
+| packed decode | 1.235 | 1.201 | 1.002 | 0.975 |
+| bytes encodeForward | 0.977 | 1.142 | 0.943 | 1.102 |
+| bytes encodeReverse | 0.997 | 0.965 | 0.978 | 0.946 |
+| bytes decode | 0.802 | 1.156 | 0.752 | 1.084 |
+
+Session-6 schema cells (the long-outstanding renewal; first measurement of workload 2
+since the initial matrix, now on the final candidate):
+
+| Cell | upstream 7.1.0 ops/s median [min-max] | antiwire ops/s median [min-max] | ratio | alloc/op upstream / port (B) | own band |
+|---|---|---|---|---|---|
+| parse | 7,890 [7,657-8,062] | 8,445 [8,142-8,646] | 1.070 | 406,737 / 422,681 | ±5% |
+| link+load | 347 [312-360] | 369 [335-385] | 1.064 | 8,300,920 / 8,149,902 | ±5% |
+| descriptor | 11,226 [11,037-11,529] | 13,145 [12,818-13,536] | 1.171 | 240,249 / 191,896 | ±5% |
+
+Session 1 (the superseded record) read parse 1.118, link+load 1.084, descriptor 1.160;
+the schema path remains consistently port-faster on the renewed candidate, descriptor
+conversion with 20% less allocation (session 1: 22% less). One honest observation: both
+sides' schema allocations moved together versus session 1 on the same oracle jar
+(descriptor upstream 285,819 -> 240,249 B/op), so the absolute allocation levels are
+environment-accounting sensitive; the port/upstream relation is what the record carries.
+
+Session-6 protobuf-java reference cells (same code and classpath scope in both profiles;
+first renewal since the initial matrix; oracle global band ±10%):
+
+| Cell | upstream ops/s median [min-max] | antiwire ops/s median [min-max] | ratio | own band |
+|---|---|---|---|---|
+| pb emailEncode | 7,635,011 [7,467,662-7,814,385] | 7,696,870 [7,536,591-7,863,183] | 1.008 | ±5% |
+| pb emailDecode | 4,720,308 [4,464,566-5,216,715] | 4,226,678 [3,699,825-4,892,708] | 0.895 | ±15% |
+| pb allTypesEncode | 1,465,196 [1,392,639-1,542,013] | 1,504,631 [1,464,715-1,538,472] | 1.027 | ±5% |
+| pb allTypesDecode | 787,676 [760,602-805,287] | 794,887 [773,646-810,390] | 1.009 | ±5% |
+| pb packedEncode | 77,801 [75,912-78,920] | 80,718 [77,242-83,253] | 1.037 | ±5% |
+| pb packedDecode | 76,018 [72,352-80,228] | 76,760 [74,622-79,326] | 1.010 | ±10% |
+| pb bytesEncode | 1,295,140 [1,214,021-1,320,951] | 1,287,805 [1,246,185-1,312,041] | 0.994 | ±5% |
+| pb bytesDecode | 1,853,947 [1,701,985-2,006,072] | 1,894,660 [1,785,143-1,946,699] | 1.022 | ±10% |
+
+Seven of eight reference cells sit at parity (0.994-1.037). The pb emailDecode cell read
+0.895 inside its own ±15% band with the upstream side's own fork spread at 10.7%; the
+code is identical in both profiles by construction, so this cell is a same-machine
+control reading of environmental noise, not a property of either implementation, and it
+is recorded rather than re-rolled.
+
+Findings of this session:
+
+1. **bytes decode 0.802, flagged per the pre-declared rule (below its own ±15% band,
+   floor 0.85; above the global ±20% floor, 0.80, by 0.002).** The honest reading: the
+   port's absolute level reproduces session 3 almost exactly (1,258,733 vs 1,263,904
+   ops/s) while session 5's favorable 1.156 (port 1,672,821) did not reproduce; the
+   upstream side is this matrix's widest cell (run-to-run 12.2%, iterations to 1.77M).
+   Allocation is 19,072 B/op, the TASK-28 one-copy level against upstream's 19,020, so
+   the zero-copy fix is intact and any residual deficit is CPU-path. Across sessions
+   this cell has read 0.810, 0.797, 0.524 (fixed), 1.156 and now 0.802; the port's
+   level is stable while the ratio swings with the upstream side's own variance, and no
+   mechanism is claimed here without profiling. Disposition: PENDING maintainer review
+   per AC#3; this document grants no acceptance. A profiling session (JFR or
+   async-profiler on both classpaths, the session-3 method) is the named next probe.
+2. Improvements outside their own bands, reported for the record (no acceptance
+   needed): the mandate cell (2.229), all_types encodeReverse 1.111, packed decode
+   1.235, and all three schema cells (descriptor 1.171, parse 1.070, link+load 1.064).
+
+Test gate at the candidate: `./scripts/verify.sh` initially FAILED at `9238a06` with
+`JdkSchemaLoaderInMemoryTest.caseSensitivityComesFromTheSuppliedFileSystem` failing
+deterministically. Root cause is a test defect, not a code regression: jimfs 1.3.2's
+no-arg `Jimfs.newFileSystem()` derives its configuration from the current platform
+(`Configuration.forCurrentPlatform()`, verified in the jimfs bytecode) and is
+case-insensitive on macOS, so the test's case-sensitive half could never pass on this
+machine at any commit since its birth (`de61ab2`); the loader under test was following
+the supplied filesystem's rules correctly, confirmed by an NIO-only probe with no
+antiwire code on the classpath. Fixed the same day by pinning `Configuration.unix()` in
+that half (test scope only; the three measured jar checksums above are unchanged and the
+installed candidate jars were not rebuilt, so this fix does not re-fire the invalidation
+rule). Battery re-run: `VERDICT: all 14 ACTIVE suites passed` (runtime 923, schema 640,
+protoc-oracle 338, compiler 196 cases; skips reconciled by the parity-coverage suite).
+This finding also refutes the "full battery 14/14" claim recorded at TASK-40's closing:
+that battery cannot have included this test on this machine; the correction is recorded
+in the TASK-40 record.
+
+Environment: same machine; macOS 27.2 (26B123) where sessions 1-5 ran on 26.7.1
+(25G241); JVM OpenJDK 17.0.12, Maven 3.9.12, JMH 1.37, sequential runs with the
+rep-major upstream/port interleave above. The machine carried standing background load
+during the run (load average 4-7: the local LLM server and other agent panes), which
+interleaving and this session's own oracle bands absorb; this session's oracle was
+quieter than session 1's (rt global band ±20% vs ±25%, sc global band ±5%).
+
+Renewal statement (TASK-21 evidence): this record renews every cell of all three groups
+(12 runtime + 3 schema + 8 protobuf-java reference) on the final candidate `9238a06`
+under the `io.apitomy` coordinates, by revision, jar checksums, unchanged oracle pins,
+generated-model identity, and the identity fingerprints above (three re-issued with
+recorded reasons). It closes the session-4 schema/pb renewal limitation and satisfies
+the STALE banners. Open before TASK-21 acceptance: finding 1 above requires the
+maintainer's explicit record (accept, or task the profiling probe), and this document
+grants no acceptance. Any later change to `wire-runtime-java`, `wire-schema-java`,
+`wire-java-generator`, the oracle versions, or the harness workloads re-fires the
+invalidation rule against this session.
+
 ### Workload 2: Apicurio schema operations
 
 | operation | upstream 7.1.0 ops/s median [min-max] | antiwire ops/s median [min-max] | ratio port/upstream | alloc/op upstream (B) | alloc/op port (B) |
@@ -894,11 +1087,30 @@ displaced are preserved under `results/session4-20261003/` and
 `logs/session4-20261003/`, including `t28-bytes.json` (the TASK-28 isolated
 pre-measurement on the fix jars).
 
+Session 6 (2026-11-04): raw material is `/tmp/aw-perf/results/` again
+(`{rt,sc,pb}-{upstream,port}-{1,2}.{json}` + `logs/{rt,sc,pb}-*.txt` from the rebuilt
+`run-all.sh` at 19:03-19:50 CET; `analysis.txt` / `analysis.json` from the rebuilt
+two-phase script, its bands written and synthetically verified before any port number
+existed; `identity-port.txt` / `identity-upstream.txt`, green and profile-diff clean
+with the three re-issued fingerprints; `candidate-jar-checksums.txt` under the
+`io.apitomy` coordinates; `oracle-jar-checksums.txt`, all five matching section 0;
+`gen-tree-fingerprints.txt`; `schema-file-census-port.txt`, the 47-row per-file
+identity). The harness itself is the rebuilt tree described in the session-6 section,
+including `tools/stage-schema.sh` (flat staging), `tools/map_bytes.py`,
+`generate-models.sh`, `run-all.sh` (rep-major) and `tools/analyze.py`; the session's
+decision trail is `/tmp/aw-perf/trail.tsv`. Diagnosis artifacts for the test-gate
+finding: the jimfs bytecode reads and the NIO-only probe described in the session-6
+test-gate paragraph.
+
 This document is a measurement record; it grants no acceptance. All four findings of the
 initial matrix are resolved by fixes and closed by re-measurement under the pre-declared
 bands, so AC#3 no longer carries a pending gate; the TASK-21 acceptance still requires
 the maintainer's explicit record, including renewal of the schema and protobuf-java
 reference cells on the `2d175e2` candidate per the invalidation rule (section 0).
+
+Session-6 note (2026-11-04): the schema and protobuf-java renewal the paragraph above
+still asked for is delivered by session 6 on the final candidate; that session leaves
+exactly one item pending the maintainer's record, its bytes-decode finding 1.
 
 ### Coordinate update 2026-10-02
 
