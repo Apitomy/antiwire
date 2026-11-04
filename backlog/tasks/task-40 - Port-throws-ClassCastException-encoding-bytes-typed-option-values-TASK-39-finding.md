@@ -3,10 +3,10 @@ id: TASK-40
 title: >-
   Port throws ClassCastException encoding bytes-typed option values (TASK-39
   finding)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-03 21:37'
-updated_date: '2026-11-03 22:04'
+updated_date: '2026-11-04 05:04'
 labels:
   - bug
   - harness-found
@@ -31,4 +31,12 @@ Found by the TASK-39 dual-run harness on its first corpus run (2026-11-03), and 
 
 <!-- SECTION:NOTES:BEGIN -->
 2026-11-03 throw site pinned by the follow-up agent's stage-by-stage repro (/tmp/task39-repro, against the worktree jars): STAGE loadSchema OK; STAGE protoFile lookup OK (types=2); STAGE encode THREW java.lang.ClassCastException at com.squareup.wire.ProtoAdapter$WireBytesAdapter.encode(ProtoAdapter.java:1352). So the missing conversion is where the option value reaches the WireBytes adapter during SchemaEncoder's options encoding: the parsed okio.ByteString must become com.squareup.wire.Bytes before the adapter sees it.
+
+2026-11-04 closed. Root cause chain (causal-chain discipline): the throw site was WireBytesAdapter.encode (ProtoAdapter.java:1352); the discriminating observation was that the CCE fired at the ADAPTER, not at toJsonSingle's (String) cast, proving the option-value model is String on both sides and the parser/linker were tangential; the defect was the missing engine-to-DEC-14 conversion at the one producer boundary (SchemaEncoder.toJsonSingle), where every other scalar branch already converts. History note for the record: commit cd5a72c (TASK-39 closed) unintentionally also carries the seven dual-run review-fix files, because the review-fix commit failed silently on a broken git-add chain the evening before and the staged changes rode into the next commit; the content is correct and CI-verified, the message under-describes it. Surfaced to the maintainer rather than rewriting pushed history.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Fixed in e94be29 (main, pushed): SchemaEncoder.toJsonSingle's ProtoType.BYTES branch now returns Bytes.encodeUtf8 (the DEC-14 form the options adapters consume) instead of the upstream-verbatim okio ByteString.encodeUtf8; the binary encoding is byte-identical to upstream (verified against the relocated fixture's bytecode). The regression test in SchemaEncoderTest proves a bytes-valued custom option encodes and round-trips through the decoded FileDescriptorProto options map as Bytes. The harness ledger row went stale exactly as designed (the suite failed it as stale before removal) and was removed in the same commit; the matrix records the finding as fixed, dated. Coverage floors moved 141 to 142 upstream in all five stated locations. Gates: /code-review high (fix verified against real artifacts; 5 consistency findings applied), /simplify 4 angles (3 applied), full battery 14/14 ACTIVE with zero divergences, surface unchanged (MATCH=1408 GAP=0).
+<!-- SECTION:FINAL_SUMMARY:END -->
