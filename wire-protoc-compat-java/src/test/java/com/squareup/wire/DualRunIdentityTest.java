@@ -71,11 +71,19 @@ class DualRunIdentityTest {
         DualRunDivergences.repoRoot().resolve("config/dual-run-corpus.tsv"),
         StandardCharsets.UTF_8)) {
       List<String[]> roots = new ArrayList<>();
+      List<String> numbered = new ArrayList<>();
       lines.filter(l -> !l.isEmpty())
-          .map(l -> l.split("\t", -1))
-          .forEach(roots::add);
+          .forEach(numbered::add);
+      for (int i = 0; i < numbered.size(); i++) {
+        roots.add(numbered.get(i).split("\t", -1));
+      }
       boolean first = true;
-      for (String[] fields : roots) {
+      for (int i = 0; i < roots.size(); i++) {
+        String[] fields = roots.get(i);
+        if (i > 0 && fields.length != 2) {
+          throw new IllegalStateException("corpus TSV row " + (i + 1)
+              + " malformed, expected half<TAB>root: " + numbered.get(i));
+        }
         if (first) {
           if (!fields[0].equals("half") || !fields[1].equals("root")) {
             throw new IllegalStateException("corpus TSV header mismatch: " + Arrays.toString(fields));

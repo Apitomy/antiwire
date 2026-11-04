@@ -39,7 +39,7 @@ verify_pin() {
 
 if [ ! -d "$CLONE_PATH/.git" ]; then
   mkdir -p "$(dirname "$CLONE_PATH")"
-  git clone "$REPO" "$CLONE_PATH"
+  git clone --filter=blob:none "$REPO" "$CLONE_PATH"
 fi
 
 # The pinned commit may predate or postdate the default branch the clone was made from.

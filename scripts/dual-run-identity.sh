@@ -25,7 +25,9 @@ set -uo pipefail
 check_modules_consistency
 
 REPORT="$ROOT/wire-protoc-compat-java/target/surefire-reports/TEST-com.squareup.wire.DualRunIdentityTest.xml"
-# Enumerated-corpus floors (files per half) and both-LOADED coverage floors (files per half
+# Corpus floors are MARGINS below the measured corpus (150/40 vs measured 171/42), so a
+# smaller-but-real corpus keeps passing; both-LOADED coverage floors are exact measurements
+# (141/31), so any coverage regression fails. Both groups (files per half
 # that both sides loaded through the staged roots), all measured over the pinned corpora
 # (wire 9f62097dfe4995b5709d001ca0187e30ca0530ef, apicurio
 # 23a09ab4e128e8a308efbcc333c5318734126b55) on 2026-11-03: exact measurements, not margins.
@@ -50,7 +52,11 @@ missing = []
 with open(tsv) as f:
     lines = [l.rstrip("\n") for l in f if l.strip()]
 for i, line in enumerate(lines):
-    half, corpus_root = line.split("\t")
+    parts = line.split("\t")
+    if len(parts) != 2:
+        print('corpus TSV row malformed, expected half<TAB>root: %s' % line, file=sys.stderr)
+        sys.exit(2)
+    half, corpus_root = parts
     if i == 0:
         if (half, corpus_root) != ("half", "root"):
             print("HEADER-MISMATCH", file=sys.stderr)
@@ -88,6 +94,31 @@ fi
 if [ ! -d "$apicurio_clone/.git" ]; then
   echo "RESULT dual-run-identity.status=NOT_RUN"
   echo "RESULT dual-run-identity.note=the pinned apicurio clone is absent at $apicurio_clone; run scripts/fetch-apicurio.sh"
+  exit "$EXIT_NOT_RUN"
+fi
+
+# Standalone runs (verify.sh has already fetched and pinned its clones; this script has
+# documented standalone usage) must not reconcile a report over an arbitrary checkout
+# state: both clones sit at their pins or the run is NOT_RUN naming the fetch.
+pin_check="$(python3 - "$ROOT/config/parity-pins.json" "$upstream_clone" "$apicurio_clone" <<'PY'
+import json, subprocess, sys
+pins = json.load(open(sys.argv[1]))
+want = {"upstream": pins["upstream"]["resolved_commit"],
+        "apicurio": pins["apicurio_registry"]["commit"]}
+clones = {"upstream": sys.argv[2], "apicurio": sys.argv[3]}
+wrong = []
+for half, clone in clones.items():
+    head = subprocess.run(["git", "-C", clone, "rev-parse", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+    if head != want[half]:
+        wrong.append("%s clone at %s, pin is %s; run the fetch script"
+                     % (half, head[:12], want[half][:12]))
+print("; ".join(wrong))
+PY
+)"
+if [ -n "$pin_check" ]; then
+  echo "RESULT dual-run-identity.status=NOT_RUN"
+  echo "RESULT dual-run-identity.note=$pin_check"
   exit "$EXIT_NOT_RUN"
 fi
 
@@ -180,8 +211,25 @@ for fields in rows:
     doc = doc.strip()
     anchor = anchor.strip()
     path = os.path.join(root, doc)
-    if not os.path.isfile(path) or anchor not in open(path).read():
+    if "TODO-anchor" in anchor:
+        print("PENDING-ADMISSION row %s: finish the reason and replace the TODO-anchor with the real docs anchor, then commit"
+              % "\t".join(fields[:key_width]), file=sys.stderr)
+    elif not os.path.isfile(path) or anchor not in open(path).read():
         problems.append("doc_ref anchor missing: %s (%s)" % (doc_ref, anchor))
+
+# The report must postdate the ledger and the corpus TSV on EVERY path, verdict included:
+# a report from before a TSV edit describes files or rows the current state no longer has,
+# and equal per-half counts would let it pass the floors (false green).
+stale = []
+corpus_tsv = os.path.join(root, "config", "dual-run-corpus.tsv")
+for other, label in ((ledger, "config/dual-run-divergences.tsv"),
+                     (corpus_tsv, "config/dual-run-corpus.tsv")):
+    if os.path.getmtime(report) < os.path.getmtime(other):
+        stale.append(label)
+if stale:
+    problems.append("the surefire report predates %s; re-run mvn verify"
+                    % " and ".join(stale))
+
 
 print("%d %d %d %d" % (tests, identity_testcases, failures + errors + skipped, len(problems)))
 if coverages:
@@ -189,14 +237,6 @@ if coverages:
 for p in problems:
     print("PROBLEM %s" % p)
 if update == "1":
-    # --update only operates on a report whose reconciliation is current: if the report
-    # predates the ledger or the corpus TSV, its failure rows describe a superseded run.
-    stale = []
-    corpus_tsv = os.path.join(root, "config", "dual-run-corpus.tsv")
-    for other, label in ((ledger, "config/dual-run-divergences.tsv"),
-                         (corpus_tsv, "config/dual-run-corpus.tsv")):
-        if os.path.getmtime(report) < os.path.getmtime(other):
-            stale.append(label)
     if stale:
         print("UPDATE-REFUSED-STALE the surefire report predates %s" % " and ".join(stale))
     else:

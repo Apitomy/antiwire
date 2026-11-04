@@ -144,6 +144,11 @@ final class DualRunDivergences {
       throw new IllegalStateException("ledger row doc_ref has no '<doc>:<anchor>' split: "
           + row);
     }
+    if (row.docRef.contains("TODO-anchor")) {
+      throw new IllegalStateException("ledger row is a PENDING ADMISSION (appended by "
+          + "scripts/dual-run-identity.sh --update): finish the reason and replace the "
+          + "TODO-anchor with the real docs anchor, then commit: " + row);
+    }
     Path doc = repoRoot().resolve(row.docRef.substring(0, split).trim());
     String anchor = row.docRef.substring(split + 1).trim();
     String text;
