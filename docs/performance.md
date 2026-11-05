@@ -9,7 +9,8 @@
 > RENEWED (2026-11-04): session 6 (section 5) renews every cell of all three groups on
 > the final candidate `9238a06` under the `io.apitomy` coordinates, including the schema
 > and protobuf-java reference cells the two STALE notes above left open. The STALE notes
-> are historical; one finding (bytes decode) is pending the maintainer's record.
+> are historical; one finding (bytes decode) is investigated to mechanism level (TASK-41,
+> below) and awaits the maintainer's record.
 
 
 Measured on 2026-10-02 in three sessions: 12:08-12:56 CEST (initial full matrix, 15 wire
@@ -747,7 +748,7 @@ Identity block (AC#5):
 
 | Item | Value |
 |---|---|
-| antiwire revision | `9238a064fdf091d07f686f65705e888594e993cf` (branch `main`; `e94be29` TASK-40 plus the docs-only close `9238a06`; clean tree at the 07:13 CET install) |
+| antiwire revision | `9238a064fdf091d07f686f65705e888594e993cf` (branch `main`; `e94be29` TASK-40 plus the docs-only close `9238a06`; tree state at the 07:13 CET install is inferred from the morning session's committed close, whose session died before any report: this session's start was clean, the install timestamp and the identity fingerprints were verified, and the fingerprints reproduced exactly; TASK-41 later overwrote the installed jar bytes locally, so the recorded checksums are the only remaining identity of the 07:13 artifacts) |
 | Build | `JAVA_HOME=~/.sdkman/candidates/java/17.0.12-tem mvn clean install -DskipTests`, exit 0 (the measured jars were installed this morning by the interrupted session; verified, not rebuilt) |
 | `io.apitomy:wire-runtime-java:0.1.0-SNAPSHOT` SHA-256 | `7802e615acfc852de3867f121b679b5f2e8565a19cd8ba1078a49b21a612c51c` |
 | `io.apitomy:wire-schema-java:0.1.0-SNAPSHOT` SHA-256 | `3b091ed5b9f45034c086c39cfdb07b930ce14868bf52d4cb3ec084a5904485ce` |
@@ -866,7 +867,54 @@ Findings of this session:
    level is stable while the ratio swings with the upstream side's own variance, and no
    mechanism is claimed here without profiling. Disposition: PENDING maintainer review
    per AC#3; this document grants no acceptance. A profiling session (JFR or
-   async-profiler on both classpaths, the session-3 method) is the named next probe.
+   async-profiler on both classpaths, the session-3 method) was the named next
+   probe, executed on 2026-11-05 in the paragraph below.
+
+   TASK-41 outcome (2026-11-05, the named probe, run on the session-6 candidate's
+   jars): the mechanism is confirmed with intervention-grade evidence, and the
+   contained fix was tried, measured neutral, and reverted. Facts, in order. (1) An
+   isolated rerun of the cell alone (same jars, same flags, interleaved) read 0.728,
+   so matrix interference is ruled out: the deficit reproduces in isolation. (2) JFR
+   traces of both classpaths (JMH's `-prof jfr`; async-profiler on macOS without
+   privileges sampled only idle threads, 19 and 11 samples, and was discarded) show
+   the port spending 42.0% of bench CPU in the reader's six small guard methods versus
+   24.9% upstream. Per method, port vs upstream, as leaf-frame shares of each side's
+   bench samples: `remainingInLimit` 13.1% vs 6.6%, `readByte` 9.5% vs 6.6%,
+   `beforeLengthDelimitedScalar` 7.9% vs 5.0%, `checkedLimit` 5.5% vs 6.7%,
+   `internalReadVarint32` 4.2% vs not in upstream's top set, and
+   `requireNonNegativeLength` 1.8% vs also not in it; the
+   method bodies are source-identical between the implementations, but javac compiles
+   `beforeLengthDelimitedScalar` to 59 bytes where Kotlin compiles 94, and the
+   PrintInlining logs differ accordingly. (3) The intervention: blocking the three
+   guards' inlining with `-XX:CompileCommand=dontinline` lifted the port from
+   1.18M to 1.40M ops/s (+19%) while the same block moved upstream 1.36M to 1.38M
+   (inside its noise); each guard blocked alone recovered only 3-4%, so the effect is
+   the accumulated inlined volume inside the generated-adapter compilation, the same
+   mechanism class as the session-3 `Utf8.size` finding, in the opposite direction.
+   (4) The contained fix candidate (hand-inlining the guard chain once into the
+   port-specific `readBytesAsBytes`, semantics pinned to the guards' exact sequence)
+   passed the module battery and held every identity fingerprint byte-for-byte, but
+   measured neutral on a same-day both-sides rerun: bytes decode 0.884 against
+   upstream's same-day median, inside the cell's 0.728-1.156 same-code oscillation
+   across sessions, with email decode (a path the candidate cannot touch) moving
+   0.907 to 0.831 on the same day. The candidate was reverted; the tree carries no
+   change. (5) What the evidence bounds: the remaining ~19% is reachable only by
+   non-default JVM flags (a deployment concern, not a library fix) or by
+   restructuring the core mirrored varint path (`nextTag`/`internalReadVarint32`/
+   `readByte`), where each method is worth 3-4% and source parity with upstream is
+   the port's stated discipline. Disposition unchanged in kind: the finding stands
+   documented with its mechanism, and the maintainer's explicit record (accept the
+   cell as measured, or fund the varint-path divergence as future work) remains the
+   TASK-21 gate. Raw material: `/tmp/aw-perf/prof/{port,upstream}.jfr` (session-6
+   jars), `results/iso-bytes-*` and `results/fixprobe-*` JSONs, and the PrintInlining
+   logs named in the harness trail. Identity chain, recorded for the /tmp scratch
+   this paragraph depends on: the isolated rerun, both JFR captures, and the
+   PrintInlining runs all executed BEFORE the fix candidate existed (the fix edit
+   postdates the PrintInlining step in the trail's timestamps), so their subject is
+   the session-6 bench jar whose SHA-256 prefix `3e91814b00e6bb9c` was recorded when
+   that jar was verified this morning; the fix-probe measurements then ran on the
+   rebuilt post-fix jars, and no full checksum of either jar set was recorded beyond
+   that prefix, which is the chain's stated limit.
 2. Improvements outside their own bands, reported for the record (no acceptance
    needed): the mandate cell (2.229), all_types encodeReverse 1.111, packed decode
    1.235, and all three schema cells (descriptor 1.171, parse 1.070, link+load 1.064).
@@ -901,7 +949,8 @@ under the `io.apitomy` coordinates, by revision, jar checksums, unchanged oracle
 generated-model identity, and the identity fingerprints above (three re-issued with
 recorded reasons). It closes the session-4 schema/pb renewal limitation and satisfies
 the STALE banners. Open before TASK-21 acceptance: finding 1 above requires the
-maintainer's explicit record (accept, or task the profiling probe), and this document
+maintainer's explicit record (accept the cell as measured and documented, or fund the
+varint-path divergence as future work), and this document
 grants no acceptance. Any later change to `wire-runtime-java`, `wire-schema-java`,
 `wire-java-generator`, the oracle versions, or the harness workloads re-fires the
 invalidation rule against this session.

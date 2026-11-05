@@ -3,8 +3,8 @@ id: TASK-21
 title: Publish 0.1.0 with attribution and docs
 status: To Do
 assignee: []
-created_date: '2026-09-29 09:23'
-updated_date: '2026-11-03 16:55'
+created_date: 2026-09-29 09:23
+updated_date: '2026-11-05T08:05:00Z'
 labels: []
 milestone: m-11
 dependencies:
@@ -17,9 +17,12 @@ dependencies:
   - TASK-16.2
   - TASK-21.1
 references:
-  - 'https://github.com/Apitomy/antiwire/issues/3'
+  - https://github.com/Apitomy/antiwire/issues/3
 documentation:
   - docs/decisions.md
+  - >-
+    backlog/tasks/task-41 -
+    Profile-and-close-the-bytes-decode-residual-deficit-session-6-finding-1.md
 priority: high
 ordinal: 21000
 ---
@@ -80,6 +83,19 @@ GitHub tracking issue: https://github.com/Apitomy/antiwire/issues/3
 
 2026-11-03 correction (from the DEC-19 code review): the earlier text naming io.apicurio as the namespace to authorize is superseded by DEC-19; AC#1 and the description above now say io.apitomy, and open item 6's "approval of the io.apicurio namespace use" reads approval of the io.apitomy namespace use, as does the m-11 milestone line.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: TASK-41 closure
+created: 2026-11-05T08:05:00Z
+
+---
+
+2026-11-05 (TASK-41 closure): the performance gate of this task's AC#3 has one pending item, now investigated to mechanism level in TASK-41 (docs/performance.md session 6, finding 1 outcome): the bytes-decode cell reads 0.802 with a confirmed JIT inline-shape mechanism and a +19% intervention bound; the contained fix was measured neutral and reverted. This task's gate closes when the maintainer explicitly accepts that cell as measured, or funds the varint-path divergence as future work; until then the release record's performance section is complete except for that acceptance.
+
+---
+<!-- COMMENTS:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
